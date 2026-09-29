@@ -14,7 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      identity_statements: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          pillar: string
+          sort: number
+          text: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          pillar?: string
+          sort?: number
+          text: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          pillar?: string
+          sort?: number
+          text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          show_switch_on: boolean
+          track_water: boolean
+          track_weight: boolean
+          units: string
+          updated_at: string
+          water_target_ml: number
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id: string
+          show_switch_on?: boolean
+          track_water?: boolean
+          track_weight?: boolean
+          units?: string
+          updated_at?: string
+          water_target_ml?: number
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          show_switch_on?: boolean
+          track_water?: boolean
+          track_weight?: boolean
+          units?: string
+          updated_at?: string
+          water_target_ml?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
