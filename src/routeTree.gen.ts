@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedMorningRouteImport } from './routes/_authenticated/morning'
+import { Route as AuthenticatedPlanRouteImport } from './routes/_authenticated/plan'
+import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 
 const IndexRoute = IndexRouteImport.update({
@@ -34,6 +36,16 @@ const AuthenticatedMorningRoute = AuthenticatedMorningRouteImport.update({
   path: '/morning',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPlanRoute = AuthenticatedPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedReviewRoute = AuthenticatedReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
   id: '/today',
   path: '/today',
@@ -44,12 +56,16 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/morning': typeof AuthenticatedMorningRoute
+  '/plan': typeof AuthenticatedPlanRoute
+  '/review': typeof AuthenticatedReviewRoute
   '/today': typeof AuthenticatedTodayRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/morning': typeof AuthenticatedMorningRoute
+  '/plan': typeof AuthenticatedPlanRoute
+  '/review': typeof AuthenticatedReviewRoute
   '/today': typeof AuthenticatedTodayRoute
 }
 export interface FileRoutesById {
@@ -58,19 +74,23 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/morning': typeof AuthenticatedMorningRoute
+  '/_authenticated/plan': typeof AuthenticatedPlanRoute
+  '/_authenticated/review': typeof AuthenticatedReviewRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/morning' | '/today'
+  fullPaths: '/' | '/auth' | '/morning' | '/plan' | '/review' | '/today'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/morning' | '/today'
+  to: '/' | '/auth' | '/morning' | '/plan' | '/review' | '/today'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/morning'
+    | '/_authenticated/plan'
+    | '/_authenticated/review'
     | '/_authenticated/today'
   fileRoutesById: FileRoutesById
 }
@@ -110,6 +130,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMorningRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/plan': {
+      id: '/_authenticated/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof AuthenticatedPlanRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/review': {
+      id: '/_authenticated/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof AuthenticatedReviewRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/today': {
       id: '/_authenticated/today'
       path: '/today'
@@ -122,11 +156,15 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedMorningRoute: typeof AuthenticatedMorningRoute
+  AuthenticatedPlanRoute: typeof AuthenticatedPlanRoute
+  AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMorningRoute: AuthenticatedMorningRoute,
+  AuthenticatedPlanRoute: AuthenticatedPlanRoute,
+  AuthenticatedReviewRoute: AuthenticatedReviewRoute,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
 }
 
