@@ -1,6 +1,8 @@
 # My Journey — Updated Understanding, Suggestions, Data Model, Build Order
 
-This is a review only. No code yet. Approving it locks in the direction, and then I'll write a detailed Phase 1 plan.
+Approving this starts Phase 1 straight away, so you can see the app and adjust from there. Open questions in section 3 use sensible defaults for now: Bullish/Bearish/Ranging trends, kg, and results in R. You can change any of them later.
+
+iPhone: once published, open the link in Safari, then tap Share and "Add to Home Screen". It gets its own app icon and opens full screen. Phase 1 includes the app icon and name for this.
 
 ## 1. Understanding (10 points)
 
