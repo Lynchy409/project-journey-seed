@@ -35,7 +35,7 @@ function Profile() {
   const [pillar, setPillar] = useState<Pillar>("life");
 
   const patch = useMutation({
-    mutationFn: async (values: Record<string, unknown>) => {
+    mutationFn: async (values: Database["public"]["Tables"]["profiles"]["Update"]) => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("Not signed in");
       const { error } = await supabase.from("profiles").update(values).eq("id", u.user.id);

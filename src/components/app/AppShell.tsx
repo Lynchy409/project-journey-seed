@@ -42,7 +42,7 @@ export function AppShell({
   );
 }
 
-export function ProfileButton({ name, avatar }: { name?: string | null; avatar?: string | null }) {
+export function ProfileButton({ name, avatar }: { name?: string | null | undefined; avatar?: string | null | undefined }) {
   return (
     <Link
       to="/profile"
