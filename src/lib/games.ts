@@ -16,7 +16,7 @@ const DEFAULT_DECKS: { name: string; subject: string; description: string; pairs
       ["-ment", "-mento"],
       ["-ous", "-oso"],
       ["-ary", "-ario"],
-      ["-ble", "-ble"],
+      ["-ent", "-ente"],
       ["-ance", "-ancia"],
       ["-ic", "-ico"],
     ],
