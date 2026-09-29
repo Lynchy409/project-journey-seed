@@ -24,12 +24,13 @@ export function AppShell({
             <h1 className="truncate text-3xl font-extrabold tracking-tight">{title}</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Link
+              to="/journal"
               aria-label="Journal"
               className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card shadow-card"
             >
               <NotebookPen className="h-5 w-5" />
-            </button>
+            </Link>
             {right}
           </div>
         </header>
