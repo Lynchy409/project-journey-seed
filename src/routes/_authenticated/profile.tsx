@@ -88,7 +88,7 @@ function Profile() {
             placeholder="Your name"
           />
           <button
-            onClick={() => patch.mutate({ display_name: (name ?? "").trim() || profile?.display_name })}
+            onClick={() => patch.mutate({ display_name: (name ?? "").trim() || profile?.display_name || null })}
             className="h-12 shrink-0 rounded-2xl bg-primary px-5 text-sm font-extrabold text-primary-foreground"
           >
             Save
