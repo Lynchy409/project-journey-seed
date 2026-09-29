@@ -59,13 +59,16 @@ export const tradesQuery = queryOptions({
   },
 });
 
-export async function addTrade(input: Record<string, unknown>) {
+type TradeInsert = Omit<Database["public"]["Tables"]["trades"]["Insert"], "user_id">;
+type TradeUpdate = Database["public"]["Tables"]["trades"]["Update"];
+
+export async function addTrade(input: TradeInsert) {
   const user = await uid();
   const { error } = await supabase.from("trades").insert({ ...input, user_id: user });
   if (error) throw error;
 }
 
-export async function updateTrade(id: string, patch: Record<string, unknown>) {
+export async function updateTrade(id: string, patch: TradeUpdate) {
   const { error } = await supabase.from("trades").update(patch).eq("id", id);
   if (error) throw error;
 }

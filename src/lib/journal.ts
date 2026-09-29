@@ -61,7 +61,9 @@ export async function addEntry(input: {
   if (error) throw error;
 }
 
-export async function updateEntry(id: string, patch: Record<string, unknown>) {
+type JournalUpdate = Database["public"]["Tables"]["journal_entries"]["Update"];
+
+export async function updateEntry(id: string, patch: JournalUpdate) {
   const { error } = await supabase.from("journal_entries").update(patch).eq("id", id);
   if (error) throw error;
 }
