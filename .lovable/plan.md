@@ -1,126 +1,95 @@
-# My Journey — Understanding, Gaps, Data Model, Build Order Review
+# My Journey — Updated Understanding, Suggestions, Data Model, Build Order
 
-No code will be written from this plan. It is a review document. Approving it only confirms the understanding before Phase 1.
+This is a review only. No code yet. Approving it locks in the direction, and then I'll write a detailed Phase 1 plan.
 
-Important: the Project Knowledge I can see stops partway through section 10 ("Rules (editable list, always visible,"). Everything after that (the rest of Trade, and all of Train, Learn, Life, Settings) is missing. Please check the knowledge field for a character limit, or paste the rest into chat.
+## 1. Understanding (10 points)
 
-## 1. My understanding (10 points, updated with your corrections)
+1. **A life companion for goals.** Add goals any time, tick them off any time, and see them visually as short, medium and long term, with steps to reach each one. Goals are unlimited. AI suggestions for steps are optional and clearly marked so you can judge the quality.
+2. **Pillars:** Trading, Fitness, Learning, Life. Colours can be anything. The look is clean, bright, eye-catching and mobile-first.
+3. **Shifts calendar = simple planning.** Enter a start and end date/time. For example, Thu 7pm to Fri 10am is one shift across both days. The calendar then shows clearly what free time you have over the next few weeks.
+4. **Trade log:** pair, time, strategy, entry, stop, target, R:R, result, screenshot, emotions.
+5. **Bias tracker, strategy 1 (all timeframes aligned):**
+   - 4h, 1h, 15m and 5m all agree: look for a 1-min entry.
+   - Only 1h, 15m and 5m agree: it's a judgement call. Enter only if you feel confident.
+   - Otherwise: no clear setup.
+6. **Bias tracker, strategy 2 (liquidity):** wait for a higher-timeframe draw on liquidity, then enter on a 1-min break of structure. It shows warnings: other higher-timeframe liquidity resting above or below, and watch for structure breaks.
+7. **Lift tracker (like Hevy):**
+   - Log sets live during a session. Each exercise shows your last session's weight and reps as you type.
+   - Search any lift (for example incline bench) to see your heaviest weight ever, your best weight at each rep count (1, 3, 5, 8, 10...) and full history.
+   - Each lift can have a goal (weight + reps + date).
+8. **Session builder:** starter sessions (Push, Pull, Legs) plus your own, built by search or by body part. Tap "Load" to log a session live. The rest timer and exercise videos come later, around public launch.
+9. **Body tracking** uses toggles: pick what you track. For you that's body weight and water, with no calories.
+10. **Learn** is your personal knowledge journey: store what you learn, set your own learning goals and reach them. Flashcards and study tools come later.
 
-1. An all-round life companion that helps you set goals and achieve them. You can add goals whenever you like and tick them off whenever you like. The first user is you, and other people can use it later.
-2. Goals are shown visually across three horizons: short, medium and long term. Each goal has a clear outline of the steps to reach it.
-3. Pillars: Trading, Fitness, Learning and Life. The colours don't matter to you. What matters is that the app feels clean, bright and eye-catching.
-4. Fitness includes logging workouts and logging your body weight, with progress shown on charts.
-5. Learning has built-in study tools (for example flashcards and a timer).
-6. Trading has a **trade log**. Each trade records the time of the trade, the strategy used ("1-min strat" or "all timeframes aligned") and other key data.
-7. Trading also has a **bias tracker**. You enter the trend on the 4h, 1h, 15m and 5m charts, and it tells you which strategy to look for. For example, if all four are bullish it points to the all-timeframes-aligned strategy. (Your message cut off here.)
-8. The app stores your information and acts as a memory: journal entries, lessons, and your history across every section.
-9. The calendar/shift planning, the momentum score and the Morning/Evening flows from the knowledge still apply as supporting features, unless you tell me otherwise.
-10. Design is mobile-first, with big numbers, rings and bars, very little text, and one clear action per screen.
+## 2. My suggestions (please react)
 
-## 2. Questions, gaps and conflicts
+**Momentum, reworked into a "hook" that pulls you back in**
+- **Momentum ring:** a smoothed score that drops when you miss a day but never resets to zero. A comeback shows as a big jump. It stays the headline number on Today.
+- **Daily "win the day":** a small set of daily tasks. Tick them all and you get a satisfying fill animation and a green day on the calendar.
+- **Levels and XP:** every logged trade, set, lesson or goal tick earns XP, and levels unlock titles ("Consistent", "Relentless").
+- **New PR celebrations:** a full-screen moment when you beat a lift PR or hit a goal.
+- **Weekly recap card:** "This week: 4 sessions, 12 trades, 3 lessons."
 
-**Missing content**
-- Your last message stopped mid-sentence in the bias tracker. What does it recommend when the timeframes are *mixed* (for example 4h bullish, 5m bearish)? And what other key data should a trade log hold (pair, entry, stop, target, result in R, screenshot, emotions)?
-- The knowledge also cuts off at the Trade section. Train, Learn and Life are not described in detail.
-- Should goals be planned fairly rigidly around shifts (as in the knowledge), or be more flexible, ticked off "whenever"? This changes how central the calendar is.
-- Should the app *suggest* the steps to reach a goal (using AI), or will you write the steps yourself?
+I'd start with the ring, win the day and PR celebrations, then add XP later.
 
-**Calendar and momentum**
-- Night shifts cross midnight. Does a night shift belong to the day it starts? And which day do "today's" tasks and momentum belong to at 3am? This needs a configurable day-rollover time (for example 4am).
-- If a day has no type assigned, which template applies? Or does it count toward momentum at all?
-- Do Rest/Recovery days have non-negotiables? If there are none, is the day score 100 or is the day skipped?
-- What momentum does a brand-new user start at: 0, 50, or no score until 3 days have passed?
-- What happens when you edit a template after the day has passed? I suggest saving a snapshot of each day's tasks at creation so past scores never change.
-- Is the "Comeback" state triggered by one miss, or by a score below some threshold?
+**Goals not being hit**
+- If a goal hasn't moved for a set time, or several goals slip, show a gentle prompt: "Let's check in." It opens a short journal flow with questions like:
+  - What's blocking this?
+  - Too many goals?
+  - Should this be paused or broken into smaller steps?
 
-**Goals**
-- Is the limit of 3 per pillar for weekly goals only, or for monthly too? Does Life count as a pillar for this limit?
-- Which day does the week start on (Monday?), and which day is the Weekly Review by default?
-- There are "3 pillar goals + identity" vision goals, but four pillars and four identity statements. Is Life part of the Vision?
+**Sign-in that switches you on**
+- The first time, you sign in with Google (one tap). After that you stay signed in.
+- Opening the app shows a 3-second "switch on" screen: one of your identity statements, full screen, with a single "Let's go" tap. It energises you without getting in the way.
 
-**Auto-linked progress**
-- Auto-linked progress depends on Train, Learn and Trade, but those are built after Goals. Until then, goals will need to use manual progress.
+## 3. Remaining questions
+- Bias tracker trend options: just Bullish / Bearish / Ranging per timeframe?
+- For the liquidity strategy, should the tracker only show a checklist and reminders (it can't read the chart itself)?
+- Trade result: record in R, in money, or both? Do you have a funded account with rules to track (daily loss limit, max drawdown)?
+- Weight units: kg?
+- Morning Flow and Evening Check-in from the knowledge: keep them, or drop them for now?
 
-**Other**
-- Photos: do motivation photos and journal photos need secure private storage? (I assume yes.)
-- Evening Check-in: are steps and nutrition entered by hand? (No health-app sync on web.)
-- Multi-user later: for now, each account sees only its own data. Is anything shared or social?
-- Sign-in method: email/password, Google, or both?
-- The four identity goals and the day templates: should I pre-fill them with your examples as editable defaults? (I assume yes.)
-
-## 3. Proposed tables (every table is owned by one user)
+## 4. Tables (each private to its owner)
 
 ```text
-Core / config
-  profiles            name, avatar, timezone, day_rollover_time, week_start, review_day
-  pillars             (fixed list: trading, fitness, learning, life - enum, not a table)
-  shift_types         name, start_time, end_time, colour, sort
-  day_templates       day_type (work/off/rest), optional shift_type_id, name
-  template_items      template_id, title, pillar, is_non_negotiable, target_value, unit, sort
-  identity_statements text, sort, active
-  motivation_photos   storage_path, sort
-
-Calendar spine
-  calendar_days       date, day_type, shift_type_id, template_id, notes
-  day_tasks           date, source_item_id, title, pillar, is_non_negotiable, done, done_at
-                      (snapshot of template items, so history is stable)
-  daily_scores        date, day_score, momentum   (stored, recalculated forward on edit)
-  scheduled_items     date, kind (workout/trade_session/study), ref_id, time
-
-Daily flows
-  morning_flow_steps  title, kind (read_goals/timer/check), duration_sec, sort
-  morning_flow_logs   date, completed_steps, finished_at
-  evening_checkins    date, steps, nutrition(json), energy 1-5, win, lesson_entry_id
-
-Goals spine
-  goals               level (vision/monthly/weekly), pillar, title, metric, target,
-                      deadline, parent_id, progress_source (manual/auto), auto_key, status,
-                      period_start
-  goal_progress       goal_id, date, value, source_ref
-  weekly_reviews      week_start, scores(json), worked, didnt, lesson_entry_id, completed_at
-
-Journal spine
-  journal_entries     date, pillar, type, text, photo_path, is_lesson, pinned,
-                      last_surfaced_at
-  journal_links       entry_id, target_kind (trade/workout/goal/study_set), target_id
-
-Later phases (shape to be confirmed once specs arrive)
-  Train:  routines, routine_exercises, workouts, workout_sets, personal_records
-  Learn:  study_sets, cards, card_reviews (spaced repetition), study_sessions (timer)
-  Trade:  trading_rules, setups, trading_accounts, trades, trade_rule_checks
+Core        profiles (name, timezone, units, tracking toggles), identity_statements
+Calendar    shifts (start_at, end_at, label), calendar_notes
+Goals       goals (horizon short/med/long, pillar, title, target, deadline, parent_id,
+            status, progress_source), goal_steps (title, done, ai_suggested), goal_progress
+Journal     journal_entries (date, pillar, type, text, photo, is_lesson, pinned),
+            journal_links
+Momentum    daily_tasks, daily_scores (day_score, momentum), xp_events (later)
+Body        body_logs (date, weight, water_ml)
+Train       exercises (name, body_part, video_url), session_templates, template_exercises,
+            workouts, workout_sets (exercise, weight, reps, set_no), lift_goals
+            (PRs are calculated from sets, not stored)
+Trade       trades (pair, time, strategy, entry, stop, target, rr, result_r, screenshot,
+            emotions, notes), bias_checks (tf trends, recommendation, strategy)
+Learn       learning_items (topic, notes, source, pillar), later: study_sets, cards
 ```
 
-The roles table is left out until an admin feature exists, since every table is private to its owner.
+## 5. Build order review
 
-## 4. Build order review
-
-Overall the order is sound. Building the calendar and Today first matches the core problem. Flags:
-
-1. **Phase 1 "core tables" is too broad.** Create only the config and calendar tables in Phase 1. Add each later phase's tables in that phase, so no schema is guessed ahead of the specs.
-2. **The floating "+" and the Journal header icon appear in Phase 1's shell**, but their destinations don't exist until Phases 4–7. Either hide options until each area exists, or ship the Journal earlier.
-3. **The Journal is a spine but is built in Phase 4.** The Evening Check-in (Phase 2) and Weekly Review (Phase 3) both write lessons to the Journal. I recommend a minimal Journal (entries table and a basic list) in Phase 2. Phase 4 would then add the Library, filters, search and resurfacing.
-4. **Today's "Today's lesson" card** (Phase 2) can't work until Phase 4. Show an empty or hidden state until then.
-5. **Auto-linked goal progress** (Phase 3) depends on Phases 5–7. Build the "progress source" hook in Phase 3, then wire up each source in its own phase.
-6. **Scheduling workouts and trade sessions onto dates** (Phase 2 spec) depends on routines (Phase 5) and trading sessions (Phase 7). Leave these for those phases.
-7. **Settings in Phase 8 is too late.** Editing shift types, templates, identity goals and photos is needed from Phase 2. Build each settings screen with its feature. Phase 8 would only collect them into one place.
-8. **Security in Phase 8 is too late to start.** Access rules that keep each user's data private should come with every table from Phase 1. Phase 8 is a final audit only.
-9. **Mobile polish:** design at 390px from Phase 1. Phase 8 is just a final pass.
-10. **Trade last is fine**, and your note about defining the execution flow first is right. The Trade tab should show a "coming soon" placeholder until then.
-11. **Missing:** the Life section and the Profile area have no phase. Time zones and night-shift day rollover should be decided in Phase 2.
+Your original order put Train late and Trade last. Your notes make those two the most defined parts. Flags:
+- The Journal is needed early (goal check-ins write to it), so build a basic version with Goals.
+- Settings and security should come with each feature, not at the end.
+- The calendar is now simple (shifts only), so it can be quick.
 
 Revised order:
 
 ```text
-P1  Design system, 5-tab shell, sign-in, profile, config + calendar tables, access rules
-P2  Shifts + paint mode + day templates (with their settings) + Today + momentum
-    + Morning Flow + Evening Check-in + minimal Journal
-P3  Goals + manual progress + auto-progress hook + Weekly Review
-P4  Full Journal + Lessons Library + daily resurfacing
-P5  Train (+ its auto-goal sources, scheduling on calendar)
-P6  Learn engine, Flashcards, Match, LT tracker, timer (+ auto-goal sources)
-P7  Trade (after execution flow spec)
-P8  Life section, unified Settings, security audit, polish
+P1  Design system, 5-tab shell, Google sign-in, "switch on" screen, profile + toggles
+P2  Shifts calendar + Today (win-the-day tasks, momentum ring, body log: weight/water)
+P3  Goals (short/med/long, steps, optional AI suggestions) + basic Journal + check-in prompt
+P4  Train: exercise library, session builder, live logging with last-session values,
+    lift search with PRs by reps, lift goals, PR celebration
+P5  Trade: trade log + bias tracker (both strategies) + stats
+P6  Learn: knowledge store + learning goals
+P7  Lessons Library + resurfacing, weekly recap, XP/levels
+P8  Rest timer, exercise videos, final security audit and polish (launch prep)
 ```
 
-## Next step
-Please answer the questions in section 2, most importantly the truncated knowledge, night-shift day rollover, sign-in method and week start. Then I'll write a detailed Phase 1 plan.
+## Technical notes
+- Lovable Cloud for sign-in, database and photo/screenshot storage. Every table gets access rules so only its owner can see it.
+- PRs are calculated from logged sets, so they're always accurate.
+- Momentum is recalculated from daily scores, so editing a past day stays consistent.
