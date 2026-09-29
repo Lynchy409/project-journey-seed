@@ -25,7 +25,7 @@ export const profileQuery = queryOptions({
     const meta = user.user_metadata ?? {};
     const { data: created, error: e2 } = await supabase
       .from("profiles")
-      .insert({ id: user.id, display_name: meta.full_name ?? meta.name ?? user.email?.split("@")[0] ?? null, avatar_url: meta.avatar_url ?? null })
+      .insert({ id: user.id, display_name: meta["full_name"] ?? meta["name"] ?? user.email?.split("@")[0] ?? null, avatar_url: meta["avatar_url"] ?? null })
       .select("*")
       .single();
     if (e2) throw e2;

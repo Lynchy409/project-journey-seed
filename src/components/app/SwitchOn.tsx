@@ -18,7 +18,7 @@ export function SwitchOn() {
   if (!show || !statements || !profile || profile.show_switch_on === false) return null;
   const active = statements.filter((s) => s.active);
   if (active.length === 0) return null;
-  const s = active[new Date().getDate() % active.length];
+  const s = active[new Date().getDate() % active.length]!;
   const pillar = (s.pillar as Pillar) in PILLARS ? (s.pillar as Pillar) : "life";
 
   const close = () => {
