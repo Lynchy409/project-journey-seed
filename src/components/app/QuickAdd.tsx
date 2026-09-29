@@ -1,19 +1,20 @@
 import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Plus, NotebookPen, Briefcase, Dumbbell, CandlestickChart, BookOpen, Scale } from "lucide-react";
-import { toast } from "sonner";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 const ITEMS = [
-  { label: "Journal", icon: NotebookPen, cls: "bg-life-soft text-life" },
-  { label: "Shift", icon: Briefcase, cls: "bg-secondary text-foreground" },
-  { label: "Workout", icon: Dumbbell, cls: "bg-fitness-soft text-fitness" },
-  { label: "Trade", icon: CandlestickChart, cls: "bg-trading-soft text-trading" },
-  { label: "Learning", icon: BookOpen, cls: "bg-learning-soft text-learning" },
-  { label: "Weight", icon: Scale, cls: "bg-fitness-soft text-fitness" },
+  { label: "Journal", icon: NotebookPen, cls: "bg-life-soft text-life", to: "/journal" as const },
+  { label: "Shift", icon: Briefcase, cls: "bg-secondary text-foreground", to: "/plan" as const },
+  { label: "Workout", icon: Dumbbell, cls: "bg-fitness-soft text-fitness", to: "/train" as const },
+  { label: "Trade", icon: CandlestickChart, cls: "bg-trading-soft text-trading", to: "/trade" as const },
+  { label: "Learning", icon: BookOpen, cls: "bg-learning-soft text-learning", to: "/learn" as const },
+  { label: "Weight", icon: Scale, cls: "bg-fitness-soft text-fitness", to: "/today" as const },
 ];
 
 export function QuickAdd() {
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   return (
     <>
       <button
@@ -29,12 +30,12 @@ export function QuickAdd() {
             <DrawerTitle className="text-xl font-extrabold">Quick add</DrawerTitle>
           </DrawerHeader>
           <div className="grid grid-cols-3 gap-3 px-4 pb-8">
-            {ITEMS.map(({ label, icon: Icon, cls }) => (
+            {ITEMS.map(({ label, icon: Icon, cls, to }) => (
               <button
                 key={label}
                 onClick={() => {
                   setOpen(false);
-                  toast(`${label} logging arrives in a coming phase`);
+                  navigate({ to });
                 }}
                 className="flex flex-col items-center gap-2 rounded-2xl border bg-card p-4 font-semibold active:scale-95 transition-transform"
               >
