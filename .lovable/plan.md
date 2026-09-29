@@ -4,24 +4,26 @@ No code will be written from this plan. It is a review document. Approving it on
 
 Important: the Project Knowledge I can see stops partway through section 10 ("Rules (editable list, always visible,"). Everything after that (the rest of Trade, and all of Train, Learn, Life, Settings) is missing. Please check the knowledge field for a character limit, or paste the rest into chat.
 
-## 1. My understanding (10 points)
+## 1. My understanding (10 points, updated with your corrections)
 
-1. A personal app for *doing* goals, not setting them. The first user is you: a 21-year-old UK shift worker. It is designed so other people can use it later.
-2. Four pillars, each with its own colour: Trading (emerald), Fitness (orange), Learning (blue), Life (violet).
-3. The main problem it solves is getting back on track after disruption. Plans adapt to each day's shift, and a missed day costs you something but never wipes you out.
-4. Three spines connect everything. Calendar is *when*, Goals is *why*, Journal is *memory*. Every record has a date, a pillar, and an optional link to a goal.
-5. Config over code: shift types, day templates, routines, setups, rules, study sets and non-negotiables are all data you can edit.
-6. The Plan tab has a month calendar coloured by day type. You can "paint" shifts onto many dates at once, and each day type (Work, Off, Rest) has its own editable template of tasks and non-negotiables.
-7. Today shows, in order: greeting, shift chip, momentum ring, a resurfaced lesson, today's tasks, weekly goals and a motivation photo. It also has a guided Morning Flow (four identity goals, timers) and an Evening Check-in.
-8. Momentum is a smoothed score: today = yesterday × 0.8 + day score × 0.2. The day score is the % of that day's non-negotiables completed. After a missed day it shows a "Comeback" state, with no shaming.
-9. Goals go Vision → Monthly → Weekly, with a hard limit of 3 weekly goals per pillar. Progress comes from linked data or is entered by hand. A guided Weekly Review scores last week, captures a lesson, sets next week and adjusts the plan around shifts.
-10. The Journal covers every pillar and has typed entries. "Mark as Lesson" feeds a Lessons Library, and Today resurfaces one lesson a day that matches the day's pillars. There are five tabs (Today, Plan, Trade, Train, Learn), a floating "+" button on every screen, and a light, bright, mobile-first design at 390px.
+1. An all-round life companion that helps you set goals and achieve them. You can add goals whenever you like and tick them off whenever you like. The first user is you, and other people can use it later.
+2. Goals are shown visually across three horizons: short, medium and long term. Each goal has a clear outline of the steps to reach it.
+3. Pillars: Trading, Fitness, Learning and Life. The colours don't matter to you. What matters is that the app feels clean, bright and eye-catching.
+4. Fitness includes logging workouts and logging your body weight, with progress shown on charts.
+5. Learning has built-in study tools (for example flashcards and a timer).
+6. Trading has a **trade log**. Each trade records the time of the trade, the strategy used ("1-min strat" or "all timeframes aligned") and other key data.
+7. Trading also has a **bias tracker**. You enter the trend on the 4h, 1h, 15m and 5m charts, and it tells you which strategy to look for. For example, if all four are bullish it points to the all-timeframes-aligned strategy. (Your message cut off here.)
+8. The app stores your information and acts as a memory: journal entries, lessons, and your history across every section.
+9. The calendar/shift planning, the momentum score and the Morning/Evening flows from the knowledge still apply as supporting features, unless you tell me otherwise.
+10. Design is mobile-first, with big numbers, rings and bars, very little text, and one clear action per screen.
 
 ## 2. Questions, gaps and conflicts
 
 **Missing content**
-- The Trade section (rules, setups, trade log fields, R calculation, funded account rules) is cut off.
-- Train, Learn (Flashcards, Match, "LT tracker", timer), Life and Settings are not in the knowledge at all. What does "LT" mean?
+- Your last message stopped mid-sentence in the bias tracker. What does it recommend when the timeframes are *mixed* (for example 4h bullish, 5m bearish)? And what other key data should a trade log hold (pair, entry, stop, target, result in R, screenshot, emotions)?
+- The knowledge also cuts off at the Trade section. Train, Learn and Life are not described in detail.
+- Should goals be planned fairly rigidly around shifts (as in the knowledge), or be more flexible, ticked off "whenever"? This changes how central the calendar is.
+- Should the app *suggest* the steps to reach a goal (using AI), or will you write the steps yourself?
 
 **Calendar and momentum**
 - Night shifts cross midnight. Does a night shift belong to the day it starts? And which day do "today's" tasks and momentum belong to at 3am? This needs a configurable day-rollover time (for example 4am).
