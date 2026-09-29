@@ -379,6 +379,118 @@ export type Database = {
           },
         ]
       }
+      match_decks: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          subject?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      match_pairs: {
+        Row: {
+          created_at: string
+          deck_id: string
+          id: string
+          left_text: string
+          right_text: string
+          sort: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deck_id: string
+          id?: string
+          left_text: string
+          right_text: string
+          sort?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deck_id?: string
+          id?: string
+          left_text?: string
+          right_text?: string
+          sort?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_pairs_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "match_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      match_scores: {
+        Row: {
+          accuracy: number
+          created_at: string
+          date: string
+          deck_id: string | null
+          id: string
+          pairs: number
+          seconds: number
+          user_id: string
+        }
+        Insert: {
+          accuracy?: number
+          created_at?: string
+          date?: string
+          deck_id?: string | null
+          id?: string
+          pairs?: number
+          seconds?: number
+          user_id: string
+        }
+        Update: {
+          accuracy?: number
+          created_at?: string
+          date?: string
+          deck_id?: string | null
+          id?: string
+          pairs?: number
+          seconds?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_scores_deck_id_fkey"
+            columns: ["deck_id"]
+            isOneToOne: false
+            referencedRelation: "match_decks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       momentum_days: {
         Row: {
           created_at: string
@@ -445,6 +557,121 @@ export type Database = {
           units?: string
           updated_at?: string
           water_target_ml?: number
+        }
+        Relationships: []
+      }
+      routine_logs: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          name: string
+          routine_id: string | null
+          seconds: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          name: string
+          routine_id?: string | null
+          seconds?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          name?: string
+          routine_id?: string | null
+          seconds?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routine_logs_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routine_steps: {
+        Row: {
+          created_at: string
+          cue: string | null
+          id: string
+          name: string
+          routine_id: string
+          seconds: number
+          sort: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cue?: string | null
+          id?: string
+          name: string
+          routine_id: string
+          seconds?: number
+          sort?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          cue?: string | null
+          id?: string
+          name?: string
+          routine_id?: string
+          seconds?: number
+          sort?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routine_steps_routine_id_fkey"
+            columns: ["routine_id"]
+            isOneToOne: false
+            referencedRelation: "routines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      routines: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          kind: string
+          name: string
+          sort: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          name: string
+          sort?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: string
+          name?: string
+          sort?: number
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

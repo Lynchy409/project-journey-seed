@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Gamepad2, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, Stat, TextArea, TextInput } from "@/components/app/ui";
+import { MatchGame } from "@/components/app/MatchGame";
 import { prettyDate, todayISO } from "@/lib/dates";
 import { addCard, addStudySession, deleteCard, flashcardsQuery, minutesThisWeek, reviewCard, studySessionsQuery } from "@/lib/learn";
+import { addDeck, addPair, bestFor, decksQuery, deleteDeck, deletePair, formatSeconds, saveScore, scoresQuery, type MatchDeck } from "@/lib/games";
 import { addEntry } from "@/lib/journal";
 
 export const Route = createFileRoute("/_authenticated/learn")({
@@ -23,21 +25,200 @@ export const Route = createFileRoute("/_authenticated/learn")({
   component: Learn,
 });
 
-type Tab = "focus" | "cards" | "log";
+type Tab = "focus" | "games" | "cards" | "log";
+
+const TITLES: Record<Tab, string> = { focus: "Focus", games: "Games", cards: "Flashcards", log: "Study log" };
 
 function Learn() {
   const [tab, setTab] = useState<Tab>("focus");
   return (
-    <AppShell eyebrow="Learning" title={tab === "focus" ? "Focus" : tab === "cards" ? "Flashcards" : "Study log"}>
+    <AppShell eyebrow="Learning" title={TITLES[tab]}>
       <div className="flex gap-2">
         <Chip active={tab === "focus"} onClick={() => setTab("focus")} className="flex-1">Focus</Chip>
+        <Chip active={tab === "games"} onClick={() => setTab("games")} className="flex-1">Games</Chip>
         <Chip active={tab === "cards"} onClick={() => setTab("cards")} className="flex-1">Cards</Chip>
         <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">Log</Chip>
       </div>
       {tab === "focus" && <Focus />}
+      {tab === "games" && <Games />}
       {tab === "cards" && <Cards />}
       {tab === "log" && <Log />}
     </AppShell>
+  );
+}
+
+function Games() {
+  const qc = useQueryClient();
+  const { data: decks } = useQuery(decksQuery);
+  const { data: scores } = useQuery(scoresQuery);
+  const [playing, setPlaying] = useState<MatchDeck | null>(null);
+  const [editing, setEditing] = useState<MatchDeck | null>(null);
+  const [building, setBuilding] = useState(false);
+
+  const save = useMutation({
+    mutationFn: saveScore,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["match_scores"] });
+      toast.success("Score saved");
+      setPlaying(null);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+
+  const remove = useMutation({
+    mutationFn: deleteDeck,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["match_decks"] }),
+  });
+
+  return (
+    <>
+      <Card>
+        <div className="grid grid-cols-2 gap-2">
+          <Stat label="Games played" value={scores?.length ?? 0} tone="text-learning" />
+          <Stat label="Your sets" value={decks?.length ?? 0} />
+        </div>
+        <div className="mt-3">
+          <PrimaryButton onClick={() => setBuilding(true)}>
+            <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> Create a game</span>
+          </PrimaryButton>
+        </div>
+      </Card>
+
+      {(decks ?? []).map((d) => {
+        const best = bestFor(scores ?? [], d.id);
+        return (
+          <Card key={d.id}>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-lg font-extrabold leading-tight">{d.name}</p>
+                <p className="mt-0.5 text-xs font-bold text-muted-foreground">
+                  {d.match_pairs.length} pairs{best ? ` · best ${formatSeconds(best.seconds)} at ${best.accuracy}%` : " · not played yet"}
+                </p>
+              </div>
+              <button aria-label="Delete game" onClick={() => remove.mutate(d.id)} className="text-muted-foreground">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            {d.description && <p className="mt-2 text-sm font-medium text-muted-foreground">{d.description}</p>}
+            <div className="mt-3 flex gap-3">
+              <button
+                onClick={() => setPlaying(d)}
+                disabled={d.match_pairs.length < 2}
+                className="flex h-14 flex-1 items-center justify-center gap-2 rounded-3xl bg-primary text-base font-extrabold text-primary-foreground shadow-float active:scale-[0.98] transition-transform disabled:opacity-40"
+              >
+                <Gamepad2 className="h-5 w-5" /> Play match
+              </button>
+              <button onClick={() => setEditing(d)} className="h-14 rounded-3xl border px-5 text-sm font-bold">Edit</button>
+            </div>
+          </Card>
+        );
+      })}
+
+      {!!scores?.length && (
+        <Card>
+          <SectionTitle>Recent rounds</SectionTitle>
+          <ul className="mt-3 space-y-1.5">
+            {scores.slice(0, 10).map((s) => (
+              <li key={s.id} className="flex items-center justify-between rounded-xl bg-secondary px-3 py-2 text-sm font-bold">
+                <span>{prettyDate(s.date)}</span>
+                <span className="text-muted-foreground">{formatSeconds(Number(s.seconds))} · {s.accuracy}%</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {playing && (
+        <MatchGame
+          deck={playing}
+          best={bestFor(scores ?? [], playing.id)}
+          onClose={() => setPlaying(null)}
+          onFinish={(r) => save.mutate({ deck_id: playing.id, seconds: r.seconds, accuracy: r.accuracy, pairs: r.pairs })}
+        />
+      )}
+      {editing && <DeckEditor deck={editing} onClose={() => setEditing(null)} />}
+      <DeckBuilder open={building} onOpenChange={setBuilding} />
+    </>
+  );
+}
+
+function DeckEditor({ deck, onClose }: { deck: MatchDeck; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [left, setLeft] = useState("");
+  const [right, setRight] = useState("");
+  const refresh = () => qc.invalidateQueries({ queryKey: ["match_decks"] });
+
+  const add = useMutation({
+    mutationFn: () => addPair(deck.id, left, right, deck.match_pairs.length),
+    onSuccess: () => { refresh(); setLeft(""); setRight(""); toast.success("Pair added"); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+  const remove = useMutation({ mutationFn: deletePair, onSuccess: refresh });
+
+  return (
+    <FormSheet open onOpenChange={(v) => { if (!v) onClose(); }} title={`Edit ${deck.name}`}>
+      <div className="space-y-2">
+        {deck.match_pairs.map((p) => (
+          <div key={p.id} className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2">
+            <span className="min-w-0 flex-1 truncate text-sm font-bold">{p.left_text}</span>
+            <span className="text-xs font-bold text-muted-foreground">↔</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-bold">{p.right_text}</span>
+            <button aria-label="Delete pair" onClick={() => remove.mutate(p.id)} className="text-muted-foreground">
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <SectionTitle>Add a pair</SectionTitle>
+      <div className="grid grid-cols-2 gap-2">
+        <TextInput value={left} onChange={(e) => setLeft(e.target.value)} placeholder="Card A" />
+        <TextInput value={right} onChange={(e) => setRight(e.target.value)} placeholder="Card B" />
+      </div>
+      <PrimaryButton onClick={() => add.mutate()} disabled={!left.trim() || !right.trim() || add.isPending}>Add pair</PrimaryButton>
+    </FormSheet>
+  );
+}
+
+function DeckBuilder({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [subject, setSubject] = useState("spanish");
+  const [description, setDescription] = useState("");
+  const [pairs, setPairs] = useState([{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }]);
+
+  const save = useMutation({
+    mutationFn: () => addDeck({ name: name.trim(), subject: subject.trim() || "general", description: description.trim() || null, pairs }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["match_decks"] });
+      toast.success("Game created");
+      onOpenChange(false);
+      setName(""); setDescription(""); setPairs([{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }]);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+
+  const setRow = (i: number, k: "left" | "right", v: string) =>
+    setPairs((rows) => rows.map((r, n) => (n === i ? { ...r, [k]: v } : r)));
+
+  return (
+    <FormSheet open={open} onOpenChange={onOpenChange} title="Create a match game">
+      <Field label="Game name"><TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Verb endings" /></Field>
+      <Field label="Subject"><TextInput value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. spanish" /></Field>
+      <Field label="What is it for?"><TextArea value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+      <SectionTitle>Pairs</SectionTitle>
+      <div className="space-y-2">
+        {pairs.map((p, i) => (
+          <div key={i} className="grid grid-cols-2 gap-2">
+            <TextInput value={p.left} onChange={(e) => setRow(i, "left", e.target.value)} placeholder="Card A" />
+            <TextInput value={p.right} onChange={(e) => setRow(i, "right", e.target.value)} placeholder="Card B" />
+          </div>
+        ))}
+      </div>
+      <button onClick={() => setPairs((r) => [...r, { left: "", right: "" }])} className="h-12 w-full rounded-2xl border text-sm font-bold">
+        Add another pair
+      </button>
+      <PrimaryButton onClick={() => save.mutate()} disabled={!name.trim() || save.isPending}>Save game</PrimaryButton>
+    </FormSheet>
   );
 }
 
