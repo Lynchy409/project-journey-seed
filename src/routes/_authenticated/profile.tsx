@@ -9,6 +9,7 @@ import { PILLARS, type Pillar } from "@/lib/pillars";
 import { profileQuery, statementsQuery } from "@/lib/profile";
 import { lessonsQuery } from "@/lib/journal";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   head: () => ({
