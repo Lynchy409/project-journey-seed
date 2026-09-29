@@ -148,7 +148,7 @@ export function MatchGame({
                     ? "border-destructive bg-destructive/10 text-destructive"
                     : isSelected
                       ? "border-primary bg-primary/10 text-primary shadow-float"
-                      : "border-border bg-card shadow-soft",
+                      : "border-border bg-card shadow-card",
               ].join(" ")}
             >
               {t.text}
