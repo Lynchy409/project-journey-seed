@@ -16,6 +16,7 @@ import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedLearnRouteImport } from './routes/_authenticated/learn'
 import { Route as AuthenticatedMorningRouteImport } from './routes/_authenticated/morning'
 import { Route as AuthenticatedPlanRouteImport } from './routes/_authenticated/plan'
+import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedReviewRouteImport } from './routes/_authenticated/review'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated/today'
 import { Route as AuthenticatedTradeRouteImport } from './routes/_authenticated/trade'
@@ -55,6 +56,11 @@ const AuthenticatedPlanRoute = AuthenticatedPlanRouteImport.update({
   path: '/plan',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedProfileRoute = AuthenticatedProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReviewRoute = AuthenticatedReviewRouteImport.update({
   id: '/review',
   path: '/review',
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/learn': typeof AuthenticatedLearnRoute
   '/morning': typeof AuthenticatedMorningRoute
   '/plan': typeof AuthenticatedPlanRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/review': typeof AuthenticatedReviewRoute
   '/today': typeof AuthenticatedTodayRoute
   '/trade': typeof AuthenticatedTradeRoute
@@ -95,6 +102,7 @@ export interface FileRoutesByTo {
   '/learn': typeof AuthenticatedLearnRoute
   '/morning': typeof AuthenticatedMorningRoute
   '/plan': typeof AuthenticatedPlanRoute
+  '/profile': typeof AuthenticatedProfileRoute
   '/review': typeof AuthenticatedReviewRoute
   '/today': typeof AuthenticatedTodayRoute
   '/trade': typeof AuthenticatedTradeRoute
@@ -109,6 +117,7 @@ export interface FileRoutesById {
   '/_authenticated/learn': typeof AuthenticatedLearnRoute
   '/_authenticated/morning': typeof AuthenticatedMorningRoute
   '/_authenticated/plan': typeof AuthenticatedPlanRoute
+  '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/review': typeof AuthenticatedReviewRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
   '/_authenticated/trade': typeof AuthenticatedTradeRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/learn'
     | '/morning'
     | '/plan'
+    | '/profile'
     | '/review'
     | '/today'
     | '/trade'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
     | '/learn'
     | '/morning'
     | '/plan'
+    | '/profile'
     | '/review'
     | '/today'
     | '/trade'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '/_authenticated/learn'
     | '/_authenticated/morning'
     | '/_authenticated/plan'
+    | '/_authenticated/profile'
     | '/_authenticated/review'
     | '/_authenticated/today'
     | '/_authenticated/trade'
@@ -211,6 +223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlanRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/profile': {
+      id: '/_authenticated/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AuthenticatedProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/review': {
       id: '/_authenticated/review'
       path: '/review'
@@ -247,6 +266,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLearnRoute: typeof AuthenticatedLearnRoute
   AuthenticatedMorningRoute: typeof AuthenticatedMorningRoute
   AuthenticatedPlanRoute: typeof AuthenticatedPlanRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedReviewRoute: typeof AuthenticatedReviewRoute
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
   AuthenticatedTradeRoute: typeof AuthenticatedTradeRoute
@@ -258,6 +278,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLearnRoute: AuthenticatedLearnRoute,
   AuthenticatedMorningRoute: AuthenticatedMorningRoute,
   AuthenticatedPlanRoute: AuthenticatedPlanRoute,
+  AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedReviewRoute: AuthenticatedReviewRoute,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
   AuthenticatedTradeRoute: AuthenticatedTradeRoute,
