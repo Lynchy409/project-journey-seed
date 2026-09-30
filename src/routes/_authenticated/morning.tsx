@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 import { statementsQuery } from "@/lib/profile";
 import { PILLARS, type Pillar } from "@/lib/pillars";
-import { PrimaryButton } from "@/components/app/ui";
+import { addEntry } from "@/lib/journal";
+import { FLOW_SECONDS, MORNING_FLOW, PRAYER_LINES } from "@/lib/morning";
+import { PrimaryButton, GhostButton, TextArea } from "@/components/app/ui";
+import { StretchFlow } from "@/components/app/StretchFlow";
+import { BoxBreath } from "@/components/app/BoxBreath";
 
 export const Route = createFileRoute("/_authenticated/morning")({
   head: () => ({
     meta: [
       { title: "Morning flow — My Journey" },
-      { name: "description", content: "Wake, read your goals aloud, stretch, breakfast, meditate, then trade." },
+      { name: "description", content: "Water, goals aloud, a six-minute mobility flow, breakfast, breathwork, then the charts." },
       { property: "og:title", content: "Morning flow — My Journey" },
-      { property: "og:description", content: "Wake, read your goals aloud, stretch, breakfast, meditate, then trade." },
+      { property: "og:description", content: "Water, goals aloud, a six-minute mobility flow, breakfast, breathwork, then the charts." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -21,28 +25,67 @@ export const Route = createFileRoute("/_authenticated/morning")({
   component: Morning,
 });
 
-type Step = { title: string; detail: string; seconds?: number; statements?: boolean };
+type Step = {
+  title: string;
+  detail: string;
+  seconds?: number;
+  statements?: boolean;
+  flow?: boolean;
+  anchor?: boolean;
+  trade?: boolean;
+  cta?: string;
+};
 
 function Morning() {
   const navigate = useNavigate();
   const { data: statements } = useQuery(statementsQuery);
   const [i, setI] = useState(0);
+  const [flowOpen, setFlowOpen] = useState(false);
 
   const steps = useMemo<Step[]>(
     () => [
-      { title: "Wake up", detail: "Feet on the floor. No phone scrolling." },
+      {
+        title: "Hydrated & upright",
+        detail: "Toilet, downstairs, a pint of water — all screen-free. Body moving, mind awake.",
+        cta: "I'm ready",
+      },
       { title: "Read your goals aloud", detail: "Say each one out loud, like you mean it.", statements: true },
-      { title: "Stretch", detail: "Ten minutes of movement to switch the body on.", seconds: 600 },
-      { title: "Wash", detail: "Cold finish if you can take it." },
-      { title: "Big breakfast", detail: "Protein first. Fuel the day properly." },
-      { title: "Meditate", detail: "Ten quiet minutes. Just breathe.", seconds: 600 },
-      { title: "Trade or prepare", detail: "Check your bias, then follow the plan." },
+      {
+        title: "6-minute mobility flow",
+        detail: "Hips, lower back and hamstrings. Hands free — it beeps and moves on by itself.",
+        flow: true,
+      },
+      { title: "Wash", detail: "Cold finish if you can take it. Feel fully awake." },
+      { title: "Big breakfast", detail: "Protein first. Fuel the day and the training." },
+      {
+        title: "Breathe, prayer & morning words",
+        detail: "Two minutes of box breathing, your three lines, then one sentence for the day.",
+        anchor: true,
+      },
+      {
+        title: "Check bias & rules",
+        detail: "Align your 4H / 1H / 15m / 5m bias and review your rules before looking for setups.",
+        trade: true,
+        cta: "Go to Trade",
+      },
     ],
     [],
   );
 
   const step = steps[i]!;
   const last = i === steps.length - 1;
+
+  if (flowOpen) {
+    return (
+      <StretchFlow
+        onClose={() => setFlowOpen(false)}
+        onDone={() => {
+          setFlowOpen(false);
+          setI((v) => Math.min(steps.length - 1, v + 1));
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background px-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-[max(env(safe-area-inset-top),1.5rem)]">
@@ -66,19 +109,92 @@ function Morning() {
         <p className="mt-3 text-base font-semibold text-muted-foreground">{step.detail}</p>
 
         {step.statements && <Statements items={statements ?? []} />}
+        {step.flow && <FlowCard onStart={() => setFlowOpen(true)} />}
+        {step.anchor && <Anchor />}
         {step.seconds && <Timer key={i} seconds={step.seconds} />}
       </div>
 
       <PrimaryButton
         onClick={() => {
-          if (last) {
+          if (step.trade) {
             toast.success("Morning done. Go get it.");
+            navigate({ to: "/trade" });
+          } else if (last) {
             navigate({ to: "/today" });
           } else setI(i + 1);
         }}
       >
-        {last ? "Finish" : "Done"}
+        {step.cta ?? "Done"}
       </PrimaryButton>
+    </div>
+  );
+}
+
+function FlowCard({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="mt-6 rounded-3xl bg-card p-5 shadow-card">
+      <div className="flex items-baseline justify-between">
+        <p className="text-sm font-extrabold">{MORNING_FLOW.length} movements</p>
+        <p className="text-sm font-bold text-muted-foreground">{Math.round(FLOW_SECONDS / 60)} min</p>
+      </div>
+      <ul className="mt-3 space-y-1.5">
+        {MORNING_FLOW.map((m, n) => (
+          <li key={m.key} className="text-sm font-semibold leading-snug">
+            <span className="font-extrabold text-muted-foreground">{n + 1}.</span> {m.name}
+          </li>
+        ))}
+      </ul>
+      <div className="mt-4">
+        <PrimaryButton onClick={onStart}>Start flow</PrimaryButton>
+      </div>
+    </div>
+  );
+}
+
+function Anchor() {
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+  const [saved, setSaved] = useState(false);
+
+  return (
+    <div className="mt-6 space-y-4">
+      <BoxBreath totalSeconds={120} />
+
+      <div className="rounded-3xl bg-card p-5 shadow-card">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Your three lines</p>
+        <div className="mt-3 space-y-3">
+          {PRAYER_LINES.map((line) => (
+            <p key={line} className="text-base font-bold leading-snug">
+              {line}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-3xl bg-card p-5 shadow-card">
+        <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Today's main focus & win</p>
+        <div className="mt-2">
+          <TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="One or two sentences." />
+        </div>
+        <div className="mt-3">
+          <GhostButton
+            disabled={text.trim().length === 0 || saved}
+            onClick={async () => {
+              try {
+                await addEntry({ text: text.trim(), pillar: "life", entry_type: "reflection" });
+                await qc.invalidateQueries({ queryKey: ["journal"] });
+                setSaved(true);
+                toast.success("Saved to your journal.");
+              } catch {
+                toast.error("Could not save that. Try again.");
+              }
+            }}
+            className="disabled:opacity-40"
+          >
+            {saved ? "Saved to journal" : "Save to journal"}
+          </GhostButton>
+        </div>
+      </div>
     </div>
   );
 }
