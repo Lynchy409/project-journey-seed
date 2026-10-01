@@ -191,7 +191,30 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
       </Field>
       <Field label="Date"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <Field label="Entry"><TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened, and what did you learn?" className="min-h-40" /></Field>
-      <PrimaryButton onClick={() => save.mutate()} disabled={!text.trim() || save.isPending}>Save entry</PrimaryButton>
+      {entry && confirming ? (
+        <div className="rounded-2xl border-2 border-primary bg-secondary p-4">
+          <p className="text-sm font-bold">Save these changes? The original entry will be overwritten.</p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="flex h-12 flex-1 items-center justify-center rounded-2xl border text-sm font-bold text-muted-foreground"
+            >
+              Keep editing
+            </button>
+            <PrimaryButton className="flex-1" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? "Saving…" : "Yes, save changes"}
+            </PrimaryButton>
+          </div>
+        </div>
+      ) : (
+        <PrimaryButton
+          onClick={() => (entry ? setConfirming(true) : save.mutate())}
+          disabled={!text.trim() || save.isPending}
+        >
+          {entry ? "Review changes" : "Save entry"}
+        </PrimaryButton>
+      )}
     </FormSheet>
   );
 }
