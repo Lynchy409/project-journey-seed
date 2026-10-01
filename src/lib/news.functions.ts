@@ -18,7 +18,7 @@ function field(block: string, tag: string): string {
   const m = block.match(
     new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`),
   );
-  return m ? m[1].trim() : "";
+  return m?.[1]?.trim() ?? "";
 }
 
 export const getNewsEvents = createServerFn({ method: "GET" }).handler(
@@ -32,7 +32,7 @@ export const getNewsEvents = createServerFn({ method: "GET" }).handler(
 
     const events: NewsEvent[] = [];
     for (const block of xml.matchAll(/<event>([\s\S]*?)<\/event>/g)) {
-      const b = block[1];
+      const b = block[1] ?? "";
       const currency = field(b, "country");
       const impact = field(b, "impact");
       if (!PAIRS.includes(currency) || !IMPACTS.includes(impact)) continue;

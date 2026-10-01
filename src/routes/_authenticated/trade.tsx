@@ -609,7 +609,7 @@ function RecapSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
 /* ---------------------------------- news ---------------------------------- */
 
 function newsDayLabel(date: string): string {
-  const [m, d, y] = date.split("-").map(Number);
+  const [m = 1, d = 1, y = 1970] = date.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
   const today = new Date();
   const isToday =
