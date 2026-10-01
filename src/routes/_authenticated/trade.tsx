@@ -184,7 +184,7 @@ function LogTab() {
           <Stat label="Total R" value={stats.totalR} tone={stats.totalR >= 0 ? "text-trading" : "text-destructive"} />
         </div>
         <div className="mt-3">
-          <PrimaryButton onClick={() => setOpen(true)}>
+          <PrimaryButton onClick={() => { setEditing(null); setOpen(true); }}>
             <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> Log a trade</span>
           </PrimaryButton>
         </div>
@@ -210,6 +210,9 @@ function LogTab() {
                 >
                   {t.outcome}{t.result_r != null ? ` ${Number(t.result_r) > 0 ? "+" : ""}${Number(t.result_r)}R` : ""}
                 </span>
+                <button aria-label="Edit trade" onClick={() => { setEditing(t); setOpen(true); }} className="text-muted-foreground">
+                  <Pencil className="h-4 w-4" />
+                </button>
                 <button aria-label="Delete trade" onClick={() => remove.mutate(t.id)} className="text-muted-foreground">
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -233,7 +236,7 @@ function LogTab() {
         ))
       )}
 
-      <TradeSheet open={open} onOpenChange={setOpen} />
+      <TradeSheet open={open} onOpenChange={setOpen} trade={editing} />
     </>
   );
 }
