@@ -446,3 +446,75 @@ function RulesTab() {
     </>
   );
 }
+
+/* --------------------------------- lessons -------------------------------- */
+
+function LessonsTab() {
+  const qc = useQueryClient();
+  const { data: lessons } = useQuery(tradeLessonsQuery);
+  const [text, setText] = useState("");
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["lessons"] });
+    qc.invalidateQueries({ queryKey: ["journal"] });
+  };
+
+  const add = useMutation({
+    mutationFn: () => addEntry({ text: text.trim(), pillar: "trading", entry_type: "lesson", is_lesson: true }),
+    onSuccess: () => {
+      invalidate();
+      setText("");
+      toast.success("Lesson saved");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+  const pin = useMutation({
+    mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) => updateEntry(id, { pinned }),
+    onSuccess: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: deleteEntry,
+    onSuccess: invalidate,
+  });
+
+  return (
+    <>
+      <Card>
+        <SectionTitle>Lessons you have earned</SectionTitle>
+        {!lessons?.length ? (
+          <Empty>No lessons yet. Mark a trade review as a lesson, or add one below.</Empty>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {lessons.map((l) => (
+              <li key={l.id} className={`rounded-2xl border p-3 ${l.pinned ? "border-trading bg-trading-soft" : ""}`}>
+                <div className="flex items-start gap-3">
+                  <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-trading" />
+                  <p className="flex-1 text-sm font-semibold leading-snug">{l.text}</p>
+                  <button
+                    aria-label={l.pinned ? "Unpin lesson" : "Pin lesson"}
+                    onClick={() => pin.mutate({ id: l.id, pinned: !l.pinned })}
+                    className={l.pinned ? "text-trading" : "text-muted-foreground"}
+                  >
+                    <Pin className="h-4 w-4" />
+                  </button>
+                  <button aria-label="Delete lesson" onClick={() => remove.mutate(l.id)} className="text-muted-foreground">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-2 pl-8 text-xs font-bold text-muted-foreground">{prettyDate(l.date)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card>
+        <Field label="New lesson">
+          <TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="The rule you take forward…" />
+        </Field>
+        <div className="mt-3">
+          <PrimaryButton onClick={() => add.mutate()} disabled={!text.trim() || add.isPending}>Add lesson</PrimaryButton>
+        </div>
+      </Card>
+    </>
+  );
+}
