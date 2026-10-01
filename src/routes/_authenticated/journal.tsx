@@ -194,7 +194,7 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
       <Field label="Pillar">
         <div className="flex gap-2">
           {(Object.keys(PILLARS) as Pillar[]).map((p) => (
-            <Chip key={p} active={pillar === p} onClick={() => setPillar(p)} className="flex-1">{PILLARS[p].label}</Chip>
+            <Chip key={p} active={pillar === p} onClick={() => { setPillar(p); if (p !== "trading") setMarkLesson(false); }} className="flex-1">{PILLARS[p].label}</Chip>
           ))}
         </div>
       </Field>
@@ -207,7 +207,7 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
       </Field>
       <Field label="Date"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <Field label="Entry"><TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened, and what did you learn?" className="min-h-40" /></Field>
-      {!entry && (
+      {!entry && pillar === "trading" && (
         <LessonToggle on={markLesson} onToggle={() => setMarkLesson((v) => !v)} value={lesson} onChange={setLesson} />
       )}
       {entry && confirming ? (
