@@ -1,11 +1,11 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Flag, Lightbulb, Plus, RefreshCw, Rocket, Sparkles, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Bar, Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, TextArea, TextInput } from "@/components/app/ui";
-import { DOW, prettyDate, todayISO } from "@/lib/dates";
+import { DOW, addDays, iso, prettyDate, todayISO } from "@/lib/dates";
 import { addEntry } from "@/lib/journal";
 import { useServerFn } from "@tanstack/react-start";
 import { generateQuiz, type QuizQuestion } from "@/lib/inner.functions";
@@ -52,6 +52,12 @@ function useItems() {
   return data ?? [];
 }
 
+/** The one skill being mastered: the most recently started sprint. */
+function activeSkill(items: InnerItem[]) {
+  const s = items.filter((i) => i.kind === "quest" && i.skill).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+  return s?.skill ?? null;
+}
+
 function QuestMap() {
   const qc = useQueryClient();
   const items = useItems();
@@ -60,7 +66,8 @@ function QuestMap() {
   const [adding, setAdding] = useState(false);
 
   const quests = items.filter((i) => i.kind === "quest");
-  const weekQuests = quests.filter((q) => q.date && week.includes(q.date));
+  const skill = activeSkill(items);
+  const weekQuests = quests.filter((q) => (q.skill ? q.skill === skill : !!q.date && week.includes(q.date)));
   const lvl = levelFor(quests.filter((q) => q.done).length);
   const weekDone = weekQuests.filter((q) => q.done).length;
 
@@ -87,9 +94,15 @@ function QuestMap() {
         <div className="mt-3 h-3 overflow-hidden rounded-full bg-primary-foreground/25">
           <div className="h-full rounded-full bg-primary-foreground transition-all" style={{ width: `${lvl.into}%` }} />
         </div>
-        <p className="mt-2 text-xs font-bold opacity-90">{100 - lvl.into} XP to level {lvl.level + 1} · {weekDone}/{weekQuests.length} quests this week</p>
+        <p className="mt-2 text-xs font-bold opacity-90">{100 - lvl.into} XP to level {lvl.level + 1} · {weekDone}/{weekQuests.length} quests on this trail</p>
       </Card>
 
+      {skill && (
+        <div className="rounded-3xl border-2 border-life bg-life-soft p-4">
+          <p className="text-[11px] font-bold uppercase tracking-wider text-life">This week's skill</p>
+          <p className="text-2xl font-extrabold leading-tight">{skill}</p>
+        </div>
+      )}
       <PrimaryButton onClick={() => setAdding(true)}>
         <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> Add a quest</span>
       </PrimaryButton>
@@ -101,7 +114,6 @@ function QuestMap() {
           {ordered.map((q, i) => {
             const offset = ["ml-0", "ml-16", "ml-28", "ml-16"][i % 4];
             const isCurrent = q.id === currentId;
-            const dayIdx = week.indexOf(q.date ?? "");
             return (
               <div key={q.id} className={`relative flex items-center gap-3 py-2 ${offset}`}>
                 <button
@@ -119,7 +131,7 @@ function QuestMap() {
                 </button>
                 <div className="min-w-0 flex-1">
                   <p className={`text-[11px] font-bold uppercase ${q.date === today ? "text-life" : "text-muted-foreground"}`}>
-                    {q.date === today ? "Today" : DOW[dayIdx] ?? ""}{q.skill ? ` · ${q.skill}` : ""}
+                    {q.date === today ? "Today" : q.date ? prettyDate(q.date) : ""}{q.skill ? ` · Day ${q.sort + 1}` : ""}
                   </p>
                   <p className={`text-sm font-bold leading-snug ${q.done ? "text-muted-foreground line-through" : ""}`}>{q.title}</p>
                   {q.done && q.max_score ? (
@@ -273,20 +285,14 @@ function Skills() {
   const qc = useQueryClient();
   const items = useItems();
   const vault = items.filter((i) => i.kind === "curiosity" && !i.done);
-  const week = weekRange();
-  const activeSprints = useMemo(() => {
-    const m = new Map<string, { total: number; done: number }>();
-    items.filter((i) => i.kind === "quest" && i.skill && i.date && week.includes(i.date)).forEach((q) => {
-      const s = m.get(q.skill!) ?? { total: 0, done: 0 };
-      s.total++; if (q.done) s.done++;
-      m.set(q.skill!, s);
-    });
-    return [...m.entries()];
-  }, [items, week]);
+  const skill = activeSkill(items);
+  const sprintQuests = items.filter((i) => i.kind === "quest" && i.skill === skill);
+  const sprintDone = sprintQuests.filter((q) => q.done).length;
 
   const [idea, setIdea] = useState("");
   const [seed, setSeed] = useState(() => Date.now());
-  const suggestions = pick(SKILL_IDEAS, 3, seed);
+  const [swap, setSwap] = useState<{ skill: string; fromId?: string } | null>(null);
+  const suggestions = pick(SKILL_IDEAS.filter((x) => x !== skill), 3, seed);
 
   const add = useMutation({
     mutationFn: (t: string) => addInnerItems([{ kind: "curiosity", title: t.trim().slice(0, 200) }]),
@@ -295,42 +301,45 @@ function Skills() {
   const remove = useMutation({ mutationFn: deleteInnerItem, onSuccess: () => qc.invalidateQueries({ queryKey: ["inner_items"] }) });
   const sprint = useMutation({
     mutationFn: async (v: { skill: string; fromId?: string }) => {
-      await addInnerItems(sprintPlan(v.skill).map((title, i) => ({ kind: "quest" as const, title, skill: v.skill, date: week[i] ?? null, sort: i })));
+      // One skill at a time: clear unfinished quests from the old sprint
+      for (const q of items.filter((i) => i.kind === "quest" && i.skill && !i.done)) await deleteInnerItem(q.id);
+      const start = new Date();
+      await addInnerItems(sprintPlan(v.skill).map((title, i) => ({ kind: "quest" as const, title, skill: v.skill, date: iso(addDays(start, i)), sort: i })));
       if (v.fromId) await promoteCuriosity(v.fromId);
     },
-    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["inner_items"] }); toast.success(`${v.skill} sprint mapped onto this week`); },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not create sprint"),
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["inner_items"] }); setSwap(null); toast.success(`${v.skill} is your skill for the next 7 days`); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not start"),
   });
+  const choose = (v: { skill: string; fromId?: string }) => (skill ? setSwap(v) : sprint.mutate(v));
 
   return (
     <>
-      {activeSprints.length > 0 && (
-        <Card>
-          <SectionTitle>This week's sprints</SectionTitle>
-          <div className="space-y-3">
-            {activeSprints.map(([skill, s]) => (
-              <div key={skill}>
-                <div className="mb-1 flex justify-between text-sm font-bold"><span>{skill}</span><span className="text-life">{s.done}/{s.total}</span></div>
-                <Bar pct={(s.done / s.total) * 100} className="bg-life" />
-              </div>
-            ))}
+      <Card>
+        <SectionTitle>Skill you're mastering</SectionTitle>
+        {skill ? (
+          <div className="mt-2">
+            <p className="text-2xl font-extrabold leading-tight text-life">{skill}</p>
+            <p className="mb-2 mt-1 text-sm font-bold text-muted-foreground">Day {Math.min(sprintDone + 1, 7)} of 7 · {sprintDone}/{sprintQuests.length} done</p>
+            <Bar pct={sprintQuests.length ? (sprintDone / sprintQuests.length) * 100 : 0} className="bg-life" />
           </div>
-        </Card>
-      )}
+        ) : (
+          <Empty>No skill picked yet. Choose one below — just one, for 7 days.</Empty>
+        )}
+      </Card>
 
       <Card>
         <SectionTitle action={
           <button aria-label="New ideas" onClick={() => setSeed(Date.now())} className="flex items-center gap-1 text-xs font-bold text-life">
             <RefreshCw className="h-3.5 w-3.5" /> Shuffle
           </button>
-        }>Skills to try this week</SectionTitle>
-        <div className="space-y-2">
+        }>Ideas</SectionTitle>
+        <div className="mt-2 space-y-2">
           {suggestions.map((s) => (
             <div key={s} className="flex items-center gap-2 rounded-2xl bg-life-soft p-3">
               <Sparkles className="h-4 w-4 shrink-0 text-life" />
               <p className="flex-1 text-sm font-bold">{s}</p>
-              <button onClick={() => sprint.mutate({ skill: s })} className="min-h-10 rounded-full bg-life px-3 text-xs font-extrabold text-primary-foreground">
-                Start sprint
+              <button onClick={() => choose({ skill: s })} className="min-h-10 rounded-full bg-life px-3 text-xs font-extrabold text-primary-foreground">
+                {skill ? "Switch" : "Pick"}
               </button>
             </div>
           ))}
@@ -339,26 +348,34 @@ function Skills() {
 
       <Card>
         <SectionTitle>Things I want to know</SectionTitle>
-        <div className="flex gap-2">
+        <div className="mt-2 flex gap-2">
           <TextInput value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="e.g. How do markets price in news?" />
           <button aria-label="Add" disabled={!idea.trim()} onClick={() => add.mutate(idea)} className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground disabled:opacity-40">
             <Plus className="h-5 w-5" />
           </button>
         </div>
         <div className="mt-3 space-y-2">
-          {vault.length === 0 && <Empty>Your curiosity vault is empty. Drop in anything you want to learn.</Empty>}
+          {vault.length === 0 && <Empty>Save anything you want to learn here, then pick it as a future week's skill.</Empty>}
           {vault.map((v) => (
             <div key={v.id} className="flex items-center gap-2 rounded-2xl border p-3">
               <Lightbulb className="h-4 w-4 shrink-0 text-life" />
               <p className="flex-1 text-sm font-bold">{v.title}</p>
-              <button aria-label="Map it out" onClick={() => sprint.mutate({ skill: v.title, fromId: v.id })} className="flex min-h-10 items-center gap-1 rounded-full bg-secondary px-3 text-xs font-extrabold">
-                <Rocket className="h-3.5 w-3.5" /> Map week
+              <button aria-label="Make this the skill" onClick={() => choose({ skill: v.title, fromId: v.id })} className="flex min-h-10 items-center gap-1 rounded-full bg-secondary px-3 text-xs font-extrabold">
+                <Rocket className="h-3.5 w-3.5" /> {skill ? "Switch" : "Pick"}
               </button>
               <button aria-label="Delete" onClick={() => remove.mutate(v.id)} className="p-1 text-muted-foreground"><Trash2 className="h-4 w-4" /></button>
             </div>
           ))}
         </div>
       </Card>
+
+      <FormSheet open={!!swap} onOpenChange={(v) => !v && setSwap(null)} title={`Switch to ${swap?.skill ?? ""}?`}>
+        <p className="text-sm font-semibold text-muted-foreground">
+          You can only master one skill at a time. Switching removes the unfinished days of <b className="text-foreground">{skill}</b> and starts a fresh 7 days from today. Days you've already completed keep their XP.
+        </p>
+        <PrimaryButton disabled={sprint.isPending} onClick={() => swap && sprint.mutate(swap)}>Yes, switch skill</PrimaryButton>
+        <button onClick={() => setSwap(null)} className="h-12 w-full rounded-2xl border text-sm font-bold">Keep {skill}</button>
+      </FormSheet>
     </>
   );
 }
