@@ -10,27 +10,25 @@ export const generateQuiz = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<QuizQuestion[]> => {
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) throw new Error("AI not configured");
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content:
+        model: "openai/gpt-6-astra",
+        instructions:
               'You write short beginner quizzes with clear, factual, single correct answers. Reply ONLY with JSON: {"questions":[{"q":"...","options":["a","b","c","d"],"answer":0}]} where answer is the index of the correct option.',
-          },
-          { role: "user", content: `Skill: ${data.skill}\nToday's task: ${data.quest}\nWrite 5 multiple-choice questions (4 options each) testing core knowledge of this skill.` },
-        ],
-        response_format: { type: "json_object" },
+        input: `Skill: ${data.skill}\nToday's task: ${data.quest}\nWrite 5 multiple-choice questions (4 options each) testing core knowledge of this skill.`,
+        text: { format: { type: "json_object" } },
       }),
     });
     if (res.status === 429) throw new Error("Too many requests — try again in a minute");
     if (res.status === 402) throw new Error("AI credits used up");
     if (!res.ok) throw new Error(`Quiz failed [${res.status}]`);
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const raw = json.choices?.[0]?.message?.content ?? "{}";
+    const json = (await res.json()) as { output_text?: string; output?: { content?: { type?: string; text?: string }[] }[] };
+    const raw =
+      json.output_text ??
+      json.output?.flatMap((o) => o.content ?? []).find((c) => c.type === "output_text")?.text ??
+      "{}";
     const parsed = z
       .object({ questions: z.array(z.object({ q: z.string(), options: z.array(z.string()).min(2), answer: z.number().int() })) })
       .parse(JSON.parse(raw.replace(/^```json\s*|```$/g, "")));
