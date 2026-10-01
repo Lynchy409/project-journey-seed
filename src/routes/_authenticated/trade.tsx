@@ -241,7 +241,7 @@ function LogTab() {
   );
 }
 
-function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function TradeSheet({ open, onOpenChange, trade }: { open: boolean; onOpenChange: (v: boolean) => void; trade: TradeRow | null }) {
   const qc = useQueryClient();
   const [f, setF] = useState({
     date: todayISO(),
@@ -264,6 +264,32 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  useEffect(() => {
+    if (!open) return;
+    if (trade) {
+      setF({
+        date: trade.date,
+        time_of_trade: trade.time_of_trade ? String(trade.time_of_trade).slice(0, 5) : "",
+        pair: trade.pair,
+        strategy: trade.strategy,
+        direction: trade.direction,
+        entry: trade.entry != null ? String(trade.entry) : "",
+        stop: trade.stop != null ? String(trade.stop) : "",
+        target: trade.target != null ? String(trade.target) : "",
+        rr: trade.rr != null ? String(trade.rr) : "",
+        outcome: trade.outcome,
+        result_r: trade.result_r != null ? String(trade.result_r) : "",
+        emotions: trade.emotions ?? "",
+        notes: trade.notes ?? "",
+        screenshot_url: trade.screenshot_url ?? "",
+        lesson: "",
+      });
+      setMarkLesson(false);
+      setPhoto(null);
+      setPreview(trade.screenshot_url ?? null);
+    }
+  }, [open, trade]);
   const pickPhoto = (file: File | null) => {
     if (preview) URL.revokeObjectURL(preview);
     setPhoto(file);
