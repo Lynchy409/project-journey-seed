@@ -23,6 +23,8 @@ export const Route = createFileRoute("/_authenticated/journal")({
   component: Journal,
 });
 
+type JournalRow = NonNullable<Awaited<ReturnType<typeof journalQuery.queryFn>>>[number];
+
 function Journal() {
   const qc = useQueryClient();
   const { data: entries } = useQuery(journalQuery);
@@ -30,6 +32,7 @@ function Journal() {
   const [type, setType] = useState<EntryType | "all" | "lessons">("all");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<JournalRow | null>(null);
 
   const filtered = (entries ?? []).filter((e) => {
     if (pillar !== "all" && e.pillar !== pillar) return false;
@@ -57,7 +60,7 @@ function Journal() {
 
   return (
     <AppShell eyebrow="Journal" title="Your memory">
-      <PrimaryButton onClick={() => setOpen(true)}>
+      <PrimaryButton onClick={() => { setEditing(null); setOpen(true); }}>
         <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> New entry</span>
       </PrimaryButton>
 
