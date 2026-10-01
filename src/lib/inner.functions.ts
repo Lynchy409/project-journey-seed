@@ -17,7 +17,7 @@ export const generateQuiz = createServerFn({ method: "POST" })
         model: "openai/gpt-6-astra",
         instructions:
               'You write short beginner quizzes with clear, factual, single correct answers. Reply ONLY with JSON: {"questions":[{"q":"...","options":["a","b","c","d"],"answer":0}]} where answer is the index of the correct option.',
-        input: `Skill: ${data.skill}\nToday's task: ${data.quest}\nWrite 5 multiple-choice questions (4 options each) testing core knowledge of this skill.`,
+        input: `Skill: ${data.skill}\nToday's task: ${data.quest}\nWrite 5 multiple-choice questions (4 options each) testing core knowledge of this skill. Return JSON.`,
         text: { format: { type: "json_object" } },
       }),
     });
