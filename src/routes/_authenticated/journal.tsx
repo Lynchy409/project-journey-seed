@@ -111,24 +111,18 @@ function Journal() {
               </div>
               <p className="mt-3 whitespace-pre-wrap text-base font-medium leading-snug">{e.text}</p>
               <div className="mt-3 flex gap-2">
-                {e.is_lesson || p !== "trading" ? (
-                  e.is_lesson ? (
-                    <span className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary text-xs font-bold text-primary-foreground">
-                      <Star className="h-4 w-4" /> Lesson
-                    </span>
-                  ) : (
-                    <span className="flex h-10 flex-1 items-center justify-center rounded-xl bg-secondary/60 text-xs font-bold text-muted-foreground">
-                      Lessons are for trading
-                    </span>
-                  )
-                ) : (
+                {e.is_lesson ? (
+                  <span className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary text-xs font-bold text-primary-foreground">
+                    <Star className="h-4 w-4" /> Lesson
+                  </span>
+                ) : p === "trading" ? (
                   <button
                     onClick={() => setLessonFrom(e)}
                     className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-secondary text-xs font-bold"
                   >
                     <Star className="h-4 w-4" /> Mark as lesson
                   </button>
-                )}
+                ) : null}
                 <button
                   onClick={() => patch.mutate({ id: e.id, pinned: !e.pinned })}
                   className={`flex h-10 w-12 items-center justify-center rounded-xl ${e.pinned ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
