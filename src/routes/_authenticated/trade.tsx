@@ -616,7 +616,7 @@ function tzOffset(ms: number, tz: string): number {
     new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" })
       .formatToParts(new Date(ms)).map((x) => [x.type, x.value]),
   );
-  return Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour! % 24, +p.minute!) - ms;
+  return Date.UTC(+p["year"]!, +p["month"]! - 1, +p["day"]!, +p["hour"]! % 24, +p["minute"]!) - ms;
 }
 
 /** Feed date/time are New York; returns a UTC instant (or null for all-day). */
