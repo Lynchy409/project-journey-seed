@@ -333,6 +333,9 @@ export type Database = {
           done: boolean
           id: string
           kind: string
+          max_score: number | null
+          output: string | null
+          score: number | null
           skill: string | null
           sort: number
           title: string
@@ -345,6 +348,9 @@ export type Database = {
           done?: boolean
           id?: string
           kind?: string
+          max_score?: number | null
+          output?: string | null
+          score?: number | null
           skill?: string | null
           sort?: number
           title: string
@@ -357,6 +363,9 @@ export type Database = {
           done?: boolean
           id?: string
           kind?: string
+          max_score?: number | null
+          output?: string | null
+          score?: number | null
           skill?: string | null
           sort?: number
           title?: string
