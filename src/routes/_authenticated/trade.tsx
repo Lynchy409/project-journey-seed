@@ -734,8 +734,7 @@ function NewsTab() {
 /* ---------------------------------- calc ---------------------------------- */
 
 const CALC_PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "GBPJPY", "EURJPY", "EURGBP"];
-const ACC_CCY = ["GBP", "USD", "EUR"] as const;
-const SYM: Record<string, string> = { GBP: "£", USD: "$", EUR: "€" };
+const ACC_CCY = ["GBP", "USD"] as const;
 
 function CalcTab() {
   const [ccy, setCcy] = useState<(typeof ACC_CCY)[number]>("GBP");
