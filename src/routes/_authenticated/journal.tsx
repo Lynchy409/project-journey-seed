@@ -133,27 +133,48 @@ function Journal() {
   );
 }
 
-function EntrySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange: (v: boolean) => void; entry: JournalRow | null }) {
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [pillar, setPillar] = useState<Pillar>("life");
   const [type, setType] = useState<EntryType>("reflection");
   const [date, setDate] = useState(todayISO());
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setConfirming(false);
+    if (entry) {
+      setText(entry.text);
+      setPillar((entry.pillar as Pillar) in PILLARS ? (entry.pillar as Pillar) : "life");
+      setType(entry.entry_type as EntryType);
+      setDate(entry.date);
+    } else {
+      setText("");
+      setPillar("life");
+      setType("reflection");
+      setDate(todayISO());
+    }
+  }, [open, entry]);
 
   const save = useMutation({
-    mutationFn: () => addEntry({ text: text.trim(), pillar, entry_type: type, date }),
+    mutationFn: () =>
+      entry
+        ? updateEntry(entry.id, { text: text.trim(), pillar, entry_type: type, date })
+        : addEntry({ text: text.trim(), pillar, entry_type: type, date }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["journal"] });
       qc.invalidateQueries({ queryKey: ["lessons"] });
       setText("");
+      setConfirming(false);
       onOpenChange(false);
-      toast.success("Saved to your journal");
+      toast.success(entry ? "Changes saved" : "Saved to your journal");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
   });
 
   return (
-    <FormSheet open={open} onOpenChange={onOpenChange} title="New journal entry">
+    <FormSheet open={open} onOpenChange={onOpenChange} title={entry ? "Edit entry" : "New journal entry"}>
       <Field label="Pillar">
         <div className="flex gap-2">
           {(Object.keys(PILLARS) as Pillar[]).map((p) => (
