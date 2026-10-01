@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedInnerRouteImport } from './routes/_authenticated/inner'
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedLearnRouteImport } from './routes/_authenticated/learn'
 import { Route as AuthenticatedMorningRouteImport } from './routes/_authenticated/morning'
@@ -35,6 +36,11 @@ const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedInnerRoute = AuthenticatedInnerRouteImport.update({
+  id: '/inner',
+  path: '/inner',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedJournalRoute = AuthenticatedJournalRouteImport.update({
   id: '/journal',
@@ -85,6 +91,7 @@ const AuthenticatedTrainRoute = AuthenticatedTrainRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/inner': typeof AuthenticatedInnerRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/learn': typeof AuthenticatedLearnRoute
   '/morning': typeof AuthenticatedMorningRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/inner': typeof AuthenticatedInnerRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/learn': typeof AuthenticatedLearnRoute
   '/morning': typeof AuthenticatedMorningRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/inner': typeof AuthenticatedInnerRoute
   '/_authenticated/journal': typeof AuthenticatedJournalRoute
   '/_authenticated/learn': typeof AuthenticatedLearnRoute
   '/_authenticated/morning': typeof AuthenticatedMorningRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/inner'
     | '/journal'
     | '/learn'
     | '/morning'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/inner'
     | '/journal'
     | '/learn'
     | '/morning'
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/inner'
     | '/_authenticated/journal'
     | '/_authenticated/learn'
     | '/_authenticated/morning'
@@ -194,6 +206,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/inner': {
+      id: '/_authenticated/inner'
+      path: '/inner'
+      fullPath: '/inner'
+      preLoaderRoute: typeof AuthenticatedInnerRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/journal': {
       id: '/_authenticated/journal'
@@ -262,6 +281,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedInnerRoute: typeof AuthenticatedInnerRoute
   AuthenticatedJournalRoute: typeof AuthenticatedJournalRoute
   AuthenticatedLearnRoute: typeof AuthenticatedLearnRoute
   AuthenticatedMorningRoute: typeof AuthenticatedMorningRoute
@@ -274,6 +294,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedInnerRoute: AuthenticatedInnerRoute,
   AuthenticatedJournalRoute: AuthenticatedJournalRoute,
   AuthenticatedLearnRoute: AuthenticatedLearnRoute,
   AuthenticatedMorningRoute: AuthenticatedMorningRoute,

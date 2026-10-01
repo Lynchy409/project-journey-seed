@@ -1,5 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 import { addDays, iso, startOfWeek } from "./dates";
 import { uid } from "./day";
 
@@ -19,7 +20,7 @@ export const innerItemsQuery = queryOptions({
   },
 });
 
-export type InnerItem = NonNullable<Awaited<ReturnType<typeof innerItemsQuery.queryFn>>>[number];
+export type InnerItem = Database["public"]["Tables"]["inner_items"]["Row"];
 
 export async function addInnerItems(rows: { kind: InnerKind; title: string; skill?: string | null; date?: string | null; sort?: number }[]) {
   const user = await uid();
