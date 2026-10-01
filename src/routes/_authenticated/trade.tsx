@@ -40,20 +40,29 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab = "bias" | "log" | "rules";
+type Tab = "bias" | "log" | "rules" | "lessons";
+
+const TAB_TITLES: Record<Tab, string> = {
+  bias: "Bias tracker",
+  log: "Trade log",
+  rules: "My rules",
+  lessons: "My lessons",
+};
 
 function Trade() {
   const [tab, setTab] = useState<Tab>("bias");
   return (
-    <AppShell eyebrow="Trading" title={tab === "bias" ? "Bias tracker" : tab === "log" ? "Trade log" : "My rules"}>
+    <AppShell eyebrow="Trading" title={TAB_TITLES[tab]}>
       <div className="flex gap-2">
         <Chip active={tab === "bias"} onClick={() => setTab("bias")} className="flex-1">Bias</Chip>
         <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">Log</Chip>
         <Chip active={tab === "rules"} onClick={() => setTab("rules")} className="flex-1">Rules</Chip>
+        <Chip active={tab === "lessons"} onClick={() => setTab("lessons")} className="flex-1">Lessons</Chip>
       </div>
       {tab === "bias" && <BiasTab />}
       {tab === "log" && <LogTab />}
       {tab === "rules" && <RulesTab />}
+      {tab === "lessons" && <LessonsTab />}
     </AppShell>
   );
 }
