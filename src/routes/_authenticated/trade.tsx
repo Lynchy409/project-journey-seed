@@ -44,7 +44,7 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab = "bias" | "log" | "rules" | "lessons" | "news";
+type Tab = "bias" | "log" | "rules" | "lessons" | "news" | "calc";
 
 const TAB_TITLES: Record<Tab, string> = {
   bias: "Bias tracker",
@@ -52,24 +52,27 @@ const TAB_TITLES: Record<Tab, string> = {
   rules: "My rules",
   lessons: "My lessons",
   news: "News",
+  calc: "Lot size calculator",
 };
 
 function Trade() {
   const [tab, setTab] = useState<Tab>("bias");
   return (
     <AppShell eyebrow="Trading" title={TAB_TITLES[tab]}>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Chip active={tab === "bias"} onClick={() => setTab("bias")} className="flex-1">Bias</Chip>
         <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">Log</Chip>
         <Chip active={tab === "rules"} onClick={() => setTab("rules")} className="flex-1">Rules</Chip>
         <Chip active={tab === "lessons"} onClick={() => setTab("lessons")} className="flex-1">Lessons</Chip>
         <Chip active={tab === "news"} onClick={() => setTab("news")} className="flex-1">News</Chip>
+        <Chip active={tab === "calc"} onClick={() => setTab("calc")} className="flex-1">Calc</Chip>
       </div>
       {tab === "bias" && <BiasTab />}
       {tab === "log" && <LogTab />}
       {tab === "rules" && <RulesTab />}
       {tab === "lessons" && <LessonsTab />}
       {tab === "news" && <NewsTab />}
+      {tab === "calc" && <CalcTab />}
     </AppShell>
   );
 }
@@ -608,15 +611,31 @@ function RecapSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
 
 /* ---------------------------------- news ---------------------------------- */
 
-function newsDayLabel(date: string): string {
+function tzOffset(ms: number, tz: string): number {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric" })
+      .formatToParts(new Date(ms)).map((x) => [x.type, x.value]),
+  );
+  return Date.UTC(+p["year"]!, +p["month"]! - 1, +p["day"]!, +p["hour"]! % 24, +p["minute"]!) - ms;
+}
+
+/** Feed date/time are New York; returns a UTC instant (or null for all-day). */
+function newsInstant(date: string, time: string): Date | null {
   const [m = 1, d = 1, y = 1970] = date.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  const today = new Date();
-  const isToday =
-    dt.getFullYear() === today.getFullYear() &&
-    dt.getMonth() === today.getMonth() &&
-    dt.getDate() === today.getDate();
-  const base = dt.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+  const t = time.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
+  if (!t) return null;
+  let h = Number(t[1]) % 12;
+  if (t[3]!.toLowerCase() === "pm") h += 12;
+  const guess = Date.UTC(y, m - 1, d, h, Number(t[2]));
+  return new Date(guess - tzOffset(guess, "America/New_York"));
+}
+
+const londonDay = (dt: Date) => dt.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+const londonTime = (dt: Date) => dt.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" });
+
+function newsDayLabel(key: string, isToday: boolean): string {
+  const [y = 1970, m = 1, d = 1] = key.split("-").map(Number);
+  const base = new Date(y, m - 1, d).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
   return isToday ? `Today · ${base}` : base;
 }
 
@@ -638,11 +657,17 @@ function NewsTab() {
       </Empty>
     );
 
-  const days = new Map<string, NewsEvent[]>();
+  const todayKey = londonDay(new Date());
+  const now = Date.now();
+  type Ev = NewsEvent & { at: Date | null; uk: string };
+  const days = new Map<string, Ev[]>();
   for (const e of data) {
-    const list = days.get(e.date) ?? [];
-    list.push(e);
-    days.set(e.date, list);
+    const at = newsInstant(e.date, e.time);
+    const [m = "01", d = "01", y = "1970"] = e.date.split("-");
+    const key = at ? londonDay(at) : `${y}-${m}-${d}`;
+    const list = days.get(key) ?? [];
+    list.push({ ...e, at, uk: at ? londonTime(at) : e.time || "All day" });
+    days.set(key, list);
   }
 
   return (
@@ -650,7 +675,7 @@ function NewsTab() {
       <Card className="flex items-center gap-3 !py-3">
         <Newspaper className="h-5 w-5 shrink-0 text-trading" />
         <p className="flex-1 text-xs text-muted-foreground">
-          Red & orange events for EUR · USD · GBP · JPY. Times are New York.
+          Red & orange events for EUR · USD · GBP · JPY. Times are London (UK).
         </p>
         <button
           className="text-xs font-semibold text-trading"
@@ -661,12 +686,17 @@ function NewsTab() {
         </button>
       </Card>
       {days.size === 0 && <Empty>No high or medium impact events this week.</Empty>}
-      {[...days.entries()].map(([date, events]) => (
-        <div key={date}>
-          <SectionTitle>{newsDayLabel(date)}</SectionTitle>
+      {[...days.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, events]) => {
+        const isToday = key === todayKey;
+        const isPast = key < todayKey;
+        return (
+        <div key={key} className={isToday ? "rounded-3xl border-2 border-trading bg-trading-soft p-3" : isPast ? "opacity-50" : ""}>
+          <SectionTitle>
+            <span className={isToday ? "text-trading" : ""}>{newsDayLabel(key, isToday)}</span>
+          </SectionTitle>
           <div className="space-y-2">
             {events.map((e, i) => (
-              <Card key={`${e.title}-${i}`} className="flex items-center gap-3 !py-3">
+              <Card key={`${e.title}-${i}`} className={`flex items-center gap-3 !py-3 ${isToday && e.at && e.at.getTime() < now ? "opacity-60" : ""}`}>
                 <span
                   className={`h-2.5 w-2.5 shrink-0 rounded-full ${
                     e.impact === "High" ? "bg-red-500" : "bg-orange-400"
@@ -675,7 +705,7 @@ function NewsTab() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">{e.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {e.currency} · {e.time || "All day"}
+                    <span className="font-semibold text-foreground">{e.uk}</span> · {e.currency}
                     {e.forecast ? ` · F ${e.forecast}` : ""}
                     {e.previous ? ` · P ${e.previous}` : ""}
                   </p>
@@ -695,7 +725,108 @@ function NewsTab() {
             ))}
           </div>
         </div>
-      ))}
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------------------------------- calc ---------------------------------- */
+
+const CALC_PAIRS = ["EURUSD", "GBPUSD", "USDJPY", "GBPJPY", "EURJPY", "EURGBP"];
+const ACC_CCY = ["GBP", "USD", "EUR"] as const;
+const SYM: Record<string, string> = { GBP: "£", USD: "$", EUR: "€" };
+
+function CalcTab() {
+  const [ccy, setCcy] = useState<(typeof ACC_CCY)[number]>("GBP");
+  const [balance, setBalance] = useState("100000");
+  const [riskPct, setRiskPct] = useState("0.5");
+  const [pair, setPair] = useState("GBPUSD");
+  const [mode, setMode] = useState<"pips" | "prices">("pips");
+  const [pips, setPips] = useState("10");
+  const [entry, setEntry] = useState("");
+  const [stop, setStop] = useState("");
+
+  const { data: rates } = useQuery({
+    queryKey: ["fx-rates", ccy],
+    queryFn: async () => {
+      const r = await fetch(`https://api.frankfurter.dev/v1/latest?from=${ccy}`);
+      if (!r.ok) throw new Error("rates");
+      const j = (await r.json()) as { rates: Record<string, number> };
+      return { ...j.rates, [ccy]: 1 } as Record<string, number>;
+    },
+    staleTime: 1000 * 60 * 30,
+  });
+
+  const quote = pair.slice(3);
+  const pipSize = quote === "JPY" ? 0.01 : 0.0001;
+  const stopPips = mode === "pips" ? Number(pips) : Math.abs(Number(entry) - Number(stop)) / pipSize;
+  const rate = rates?.[quote];
+  const pipValuePerLot = rate ? (100000 * pipSize) / rate : 0;
+  const riskCash = (Number(balance) * Number(riskPct)) / 100;
+  const lots = stopPips > 0 && pipValuePerLot > 0 ? riskCash / (stopPips * pipValuePerLot) : 0;
+  const s = SYM[ccy];
+
+  return (
+    <div className="space-y-4">
+      <Card className="text-center">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lot size</p>
+        <p className="text-5xl font-extrabold text-trading">{lots ? lots.toFixed(2) : "—"}</p>
+        <div className="mt-3 grid grid-cols-3 gap-2">
+          <Stat label="Risk" value={`${s}${riskCash.toFixed(0)}`} />
+          <Stat label="Stop" value={stopPips ? `${stopPips.toFixed(1)}p` : "—"} />
+          <Stat label="Pip / lot" value={pipValuePerLot ? `${s}${pipValuePerLot.toFixed(2)}` : "…"} />
+        </div>
+        <button
+          className="mt-3 h-12 w-full rounded-2xl border border-trading font-semibold text-trading disabled:opacity-40"
+          disabled={!lots}
+          onClick={() => { void navigator.clipboard.writeText(lots.toFixed(2)); toast.success("Lot size copied"); }}
+        >
+          Copy lots
+        </button>
+      </Card>
+
+      <Card className="space-y-3">
+        <Field label="Account currency">
+          <div className="flex gap-2">
+            {ACC_CCY.map((c) => <Chip key={c} active={ccy === c} onClick={() => setCcy(c)} className="flex-1">{SYM[c]} {c}</Chip>)}
+          </div>
+        </Field>
+        <Field label="Account size">
+          <TextInput inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {["10000", "25000", "50000", "100000", "200000"].map((v) => (
+              <Chip key={v} active={balance === v} onClick={() => setBalance(v)}>{s}{Number(v) / 1000}k</Chip>
+            ))}
+          </div>
+        </Field>
+        <Field label="Risk %">
+          <TextInput inputMode="decimal" value={riskPct} onChange={(e) => setRiskPct(e.target.value)} />
+          <div className="mt-2 flex gap-2">
+            {["0.25", "0.5", "1", "2"].map((v) => <Chip key={v} active={riskPct === v} onClick={() => setRiskPct(v)} className="flex-1">{v}%</Chip>)}
+          </div>
+        </Field>
+        <Field label="Pair">
+          <div className="grid grid-cols-3 gap-2">
+            {CALC_PAIRS.map((p) => <Chip key={p} active={pair === p} onClick={() => setPair(p)}>{p.slice(0, 3)}/{p.slice(3)}</Chip>)}
+          </div>
+        </Field>
+        <Field label="Stop loss">
+          <div className="mb-2 flex gap-2">
+            <Chip active={mode === "pips"} onClick={() => setMode("pips")} className="flex-1">In pips</Chip>
+            <Chip active={mode === "prices"} onClick={() => setMode("prices")} className="flex-1">Entry & stop</Chip>
+          </div>
+          {mode === "pips" ? (
+            <TextInput inputMode="decimal" value={pips} onChange={(e) => setPips(e.target.value)} placeholder="Pips" />
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <TextInput inputMode="decimal" value={entry} onChange={(e) => setEntry(e.target.value)} placeholder="Entry" />
+              <TextInput inputMode="decimal" value={stop} onChange={(e) => setStop(e.target.value)} placeholder="Stop" />
+            </div>
+          )}
+        </Field>
+        <p className="text-xs text-muted-foreground">Standard lot = 100,000 units. Uses live exchange rates.</p>
+      </Card>
     </div>
   );
 }
