@@ -252,7 +252,9 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
     emotions: "",
     notes: "",
     screenshot_url: "",
+    lesson: "",
   });
+  const [markLesson, setMarkLesson] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
