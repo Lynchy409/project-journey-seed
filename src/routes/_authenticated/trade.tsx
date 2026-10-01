@@ -750,7 +750,7 @@ function CalcTab() {
   const { data: rates } = useQuery({
     queryKey: ["fx-rates", ccy],
     queryFn: async () => {
-      const r = await fetch(`https://api.frankfurter.app/latest?from=${ccy}`);
+      const r = await fetch(`https://api.frankfurter.dev/v1/latest?from=${ccy}`);
       if (!r.ok) throw new Error("rates");
       const j = (await r.json()) as { rates: Record<string, number> };
       return { ...j.rates, [ccy]: 1 } as Record<string, number>;
