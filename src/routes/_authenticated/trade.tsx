@@ -287,14 +287,19 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
       if (f.notes.trim()) {
         await addEntry({ text: `${f.pair.toUpperCase()}: ${f.notes.trim()}`, pillar: "trading", entry_type: "trade_review", date: f.date });
       }
+      if (markLesson && f.lesson.trim()) {
+        await addEntry({ text: f.lesson.trim(), pillar: "trading", entry_type: "lesson", is_lesson: true, date: f.date });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trades"] });
       qc.invalidateQueries({ queryKey: ["journal"] });
-      toast.success("Trade logged");
+      qc.invalidateQueries({ queryKey: ["lessons"] });
+      toast.success(markLesson && f.lesson.trim() ? "Trade logged and lesson saved" : "Trade logged");
       onOpenChange(false);
       pickPhoto(null);
-      setF((s) => ({ ...s, pair: "", entry: "", stop: "", target: "", rr: "", result_r: "", emotions: "", notes: "", screenshot_url: "" }));
+      setMarkLesson(false);
+      setF((s) => ({ ...s, pair: "", entry: "", stop: "", target: "", rr: "", result_r: "", emotions: "", notes: "", screenshot_url: "", lesson: "" }));
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
   });
