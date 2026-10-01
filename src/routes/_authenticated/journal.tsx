@@ -111,10 +111,16 @@ function Journal() {
               </div>
               <p className="mt-3 whitespace-pre-wrap text-base font-medium leading-snug">{e.text}</p>
               <div className="mt-3 flex gap-2">
-                {e.is_lesson ? (
-                  <span className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary text-xs font-bold text-primary-foreground">
-                    <Star className="h-4 w-4" /> Lesson
-                  </span>
+                {e.is_lesson || p !== "trading" ? (
+                  e.is_lesson ? (
+                    <span className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary text-xs font-bold text-primary-foreground">
+                      <Star className="h-4 w-4" /> Lesson
+                    </span>
+                  ) : (
+                    <span className="flex h-10 flex-1 items-center justify-center rounded-xl bg-secondary/60 text-xs font-bold text-muted-foreground">
+                      Lessons are for trading
+                    </span>
+                  )
                 ) : (
                   <button
                     onClick={() => setLessonFrom(e)}
@@ -194,7 +200,7 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
       <Field label="Pillar">
         <div className="flex gap-2">
           {(Object.keys(PILLARS) as Pillar[]).map((p) => (
-            <Chip key={p} active={pillar === p} onClick={() => setPillar(p)} className="flex-1">{PILLARS[p].label}</Chip>
+            <Chip key={p} active={pillar === p} onClick={() => { setPillar(p); if (p !== "trading") setMarkLesson(false); }} className="flex-1">{PILLARS[p].label}</Chip>
           ))}
         </div>
       </Field>
@@ -207,7 +213,7 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
       </Field>
       <Field label="Date"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <Field label="Entry"><TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened, and what did you learn?" className="min-h-40" /></Field>
-      {!entry && (
+      {!entry && pillar === "trading" && (
         <LessonToggle on={markLesson} onToggle={() => setMarkLesson((v) => !v)} value={lesson} onChange={setLesson} />
       )}
       {entry && confirming ? (
