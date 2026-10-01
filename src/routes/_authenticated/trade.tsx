@@ -43,13 +43,14 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab = "bias" | "log" | "rules" | "lessons";
+type Tab = "bias" | "log" | "rules" | "lessons" | "news";
 
 const TAB_TITLES: Record<Tab, string> = {
   bias: "Bias tracker",
   log: "Trade log",
   rules: "My rules",
   lessons: "My lessons",
+  news: "News",
 };
 
 function Trade() {
@@ -61,11 +62,13 @@ function Trade() {
         <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">Log</Chip>
         <Chip active={tab === "rules"} onClick={() => setTab("rules")} className="flex-1">Rules</Chip>
         <Chip active={tab === "lessons"} onClick={() => setTab("lessons")} className="flex-1">Lessons</Chip>
+        <Chip active={tab === "news"} onClick={() => setTab("news")} className="flex-1">News</Chip>
       </div>
       {tab === "bias" && <BiasTab />}
       {tab === "log" && <LogTab />}
       {tab === "rules" && <RulesTab />}
       {tab === "lessons" && <LessonsTab />}
+      {tab === "news" && <NewsTab />}
     </AppShell>
   );
 }
