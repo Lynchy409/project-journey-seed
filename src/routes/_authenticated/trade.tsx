@@ -300,7 +300,7 @@ function TradeSheet({ open, onOpenChange, trade }: { open: boolean; onOpenChange
     mutationFn: async () => {
       let screenshotUrl: string | null = f.screenshot_url || null;
       if (photo) screenshotUrl = await uploadTradeScreenshot(photo);
-      await addTrade({
+      const payload = {
         date: f.date,
         time_of_trade: f.time_of_trade || null,
         pair: f.pair.trim().toUpperCase(),
@@ -315,19 +315,24 @@ function TradeSheet({ open, onOpenChange, trade }: { open: boolean; onOpenChange
         emotions: f.emotions || null,
         notes: f.notes || null,
         screenshot_url: screenshotUrl,
-      });
-      if (f.notes.trim()) {
-        await addEntry({ text: `${f.pair.toUpperCase()}: ${f.notes.trim()}`, pillar: "trading", entry_type: "trade_review", date: f.date });
-      }
-      if (markLesson && f.lesson.trim()) {
-        await addEntry({ text: f.lesson.trim(), pillar: "trading", entry_type: "lesson", is_lesson: true, date: f.date });
+      };
+      if (trade) {
+        await updateTrade(trade.id, payload);
+      } else {
+        await addTrade(payload);
+        if (f.notes.trim()) {
+          await addEntry({ text: `${f.pair.toUpperCase()}: ${f.notes.trim()}`, pillar: "trading", entry_type: "trade_review", date: f.date });
+        }
+        if (markLesson && f.lesson.trim()) {
+          await addEntry({ text: f.lesson.trim(), pillar: "trading", entry_type: "lesson", is_lesson: true, date: f.date });
+        }
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trades"] });
       qc.invalidateQueries({ queryKey: ["journal"] });
       qc.invalidateQueries({ queryKey: ["lessons"] });
-      toast.success(markLesson && f.lesson.trim() ? "Trade logged and lesson saved" : "Trade logged");
+      toast.success(trade ? "Trade updated" : markLesson && f.lesson.trim() ? "Trade logged and lesson saved" : "Trade logged");
       onOpenChange(false);
       pickPhoto(null);
       setMarkLesson(false);
@@ -337,7 +342,7 @@ function TradeSheet({ open, onOpenChange, trade }: { open: boolean; onOpenChange
   });
 
   return (
-    <FormSheet open={open} onOpenChange={onOpenChange} title="Log a trade">
+    <FormSheet open={open} onOpenChange={onOpenChange} title={trade ? "Edit trade" : "Log a trade"}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Date"><TextInput type="date" value={f.date} onChange={(e) => set("date", e.target.value)} /></Field>
         <Field label="Time of trade"><TextInput type="time" value={f.time_of_trade} onChange={(e) => set("time_of_trade", e.target.value)} /></Field>
