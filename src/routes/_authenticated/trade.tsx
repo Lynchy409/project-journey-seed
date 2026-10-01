@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, Pencil, Pin, Plus, Sunrise, Trash2 } from "lucide-react";
+import { GraduationCap, ImagePlus, Pencil, Pin, Plus, Sunrise, Trash2 } from "lucide-react";
 import { LessonToggle } from "@/components/app/LessonToggle";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
