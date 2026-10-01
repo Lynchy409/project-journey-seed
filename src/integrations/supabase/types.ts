@@ -326,6 +326,45 @@ export type Database = {
         }
         Relationships: []
       }
+      inner_items: {
+        Row: {
+          created_at: string
+          date: string | null
+          done: boolean
+          id: string
+          kind: string
+          skill: string | null
+          sort: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string | null
+          done?: boolean
+          id?: string
+          kind?: string
+          skill?: string | null
+          sort?: number
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string | null
+          done?: boolean
+          id?: string
+          kind?: string
+          skill?: string | null
+          sort?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       journal_entries: {
         Row: {
           created_at: string
