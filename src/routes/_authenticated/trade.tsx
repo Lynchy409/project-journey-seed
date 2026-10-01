@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { GraduationCap, ImagePlus, Pencil, Pin, Plus, Trash2 } from "lucide-react";
+import { GraduationCap, ImagePlus, Pencil, Pin, Plus, Sunrise, Trash2 } from "lucide-react";
+import { LessonToggle } from "@/components/app/LessonToggle";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, Stat, TextArea, TextInput } from "@/components/app/ui";
@@ -168,6 +169,7 @@ function LogTab() {
   const { data: trades } = useQuery(tradesQuery);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TradeRow | null>(null);
+  const [recapOpen, setRecapOpen] = useState(false);
   const stats = tradeStats(trades ?? []);
 
   const remove = useMutation({
@@ -183,12 +185,20 @@ function LogTab() {
           <Stat label="Win rate" value={`${stats.winRate}%`} tone="text-trading" />
           <Stat label="Total R" value={stats.totalR} tone={stats.totalR >= 0 ? "text-trading" : "text-destructive"} />
         </div>
-        <div className="mt-3">
+        <div className="mt-3 space-y-2">
           <PrimaryButton onClick={() => { setEditing(null); setOpen(true); }}>
             <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> Log a trade</span>
           </PrimaryButton>
+          <button
+            type="button"
+            onClick={() => setRecapOpen(true)}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-trading bg-trading-soft text-sm font-bold text-trading"
+          >
+            <Sunrise className="h-5 w-5" /> London session recap
+          </button>
         </div>
       </Card>
+      <RecapSheet open={recapOpen} onOpenChange={setRecapOpen} />
 
       {!trades?.length ? (
         <Card><Empty>No trades logged yet.</Empty></Card>
@@ -407,33 +417,7 @@ function TradeSheet({ open, onOpenChange, trade }: { open: boolean; onOpenChange
       <Field label="Review notes (saved to your journal)"><TextArea value={f.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
 
       {!trade && (
-        <>
-          <button
-            type="button"
-            onClick={() => setMarkLesson((v) => !v)}
-            className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left ${
-              markLesson ? "border-trading bg-trading-soft" : "border-dashed"
-            }`}
-          >
-            <span className="flex items-center gap-2 text-sm font-bold">
-              <GraduationCap className={`h-5 w-5 ${markLesson ? "text-trading" : "text-muted-foreground"}`} />
-              Mark as a lesson
-            </span>
-            <span className={`text-xs font-extrabold uppercase ${markLesson ? "text-trading" : "text-muted-foreground"}`}>
-              {markLesson ? "On" : "Off"}
-            </span>
-          </button>
-
-          {markLesson && (
-            <Field label="The lesson — the rule you take forward">
-              <TextArea
-                value={f.lesson}
-                onChange={(e) => set("lesson", e.target.value)}
-                placeholder="e.g. Never enter before the 15m candle closes"
-              />
-            </Field>
-          )}
-        </>
+        <LessonToggle on={markLesson} onToggle={() => setMarkLesson((v) => !v)} value={f.lesson} onChange={(v) => set("lesson", v)} />
       )}
 
       <PrimaryButton onClick={() => save.mutate()} disabled={!f.pair.trim() || save.isPending}>
@@ -559,5 +543,61 @@ function LessonsTab() {
         </div>
       </Card>
     </>
+  );
+}
+
+/* ------------------------------ session recap ------------------------------ */
+
+function RecapSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const qc = useQueryClient();
+  const [date, setDate] = useState(todayISO());
+  const [followed, setFollowed] = useState<"yes" | "no" | null>(null);
+  const [notes, setNotes] = useState("");
+  const [markLesson, setMarkLesson] = useState(false);
+  const [lesson, setLesson] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setDate(todayISO());
+    setFollowed(null);
+    setNotes("");
+    setMarkLesson(false);
+    setLesson("");
+  }, [open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const header = `London session recap · Rules followed: ${followed === "yes" ? "Yes" : "No"}`;
+      await addEntry({ text: notes.trim() ? `${header}\n\n${notes.trim().slice(0, 5000)}` : header, pillar: "trading", entry_type: "session_note", date });
+      if (markLesson && lesson.trim()) {
+        await addEntry({ text: lesson.trim().slice(0, 500), pillar: "trading", entry_type: "lesson", is_lesson: true, date });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["journal"] });
+      qc.invalidateQueries({ queryKey: ["lessons"] });
+      toast.success(markLesson && lesson.trim() ? "Recap saved and lesson added" : "Recap saved to your journal");
+      onOpenChange(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+
+  return (
+    <FormSheet open={open} onOpenChange={onOpenChange} title="London session recap">
+      <Field label="Date"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+      <Field label="Did you follow your rules?">
+        <div className="flex gap-2">
+          <Chip active={followed === "yes"} onClick={() => setFollowed("yes")} className="flex-1">Yes</Chip>
+          <Chip active={followed === "no"} onClick={() => setFollowed("no")} className="flex-1">No</Chip>
+        </div>
+      </Field>
+      <Field label="Session notes (saved to your journal)">
+        <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did London open play out? What did you do well?" className="min-h-32" />
+      </Field>
+      <LessonToggle on={markLesson} onToggle={() => setMarkLesson((v) => !v)} value={lesson} onChange={setLesson} />
+      <PrimaryButton onClick={() => save.mutate()} disabled={!followed || save.isPending}>
+        {save.isPending ? "Saving…" : "Save recap"}
+      </PrimaryButton>
+    </FormSheet>
   );
 }

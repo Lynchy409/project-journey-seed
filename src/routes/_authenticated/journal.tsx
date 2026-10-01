@@ -5,6 +5,7 @@ import { Pencil, Pin, Plus, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, TextArea, TextInput } from "@/components/app/ui";
+import { LessonToggle } from "@/components/app/LessonToggle";
 import { PILLARS, type Pillar } from "@/lib/pillars";
 import { prettyDate, todayISO } from "@/lib/dates";
 import { ENTRY_TYPES, addEntry, deleteEntry, journalQuery, updateEntry, type EntryType } from "@/lib/journal";
@@ -33,6 +34,7 @@ function Journal() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<JournalRow | null>(null);
+  const [lessonFrom, setLessonFrom] = useState<JournalRow | null>(null);
 
   const filtered = (entries ?? []).filter((e) => {
     if (pillar !== "all" && e.pillar !== pillar) return false;
@@ -109,12 +111,18 @@ function Journal() {
               </div>
               <p className="mt-3 whitespace-pre-wrap text-base font-medium leading-snug">{e.text}</p>
               <div className="mt-3 flex gap-2">
-                <button
-                  onClick={() => patch.mutate({ id: e.id, is_lesson: !e.is_lesson })}
-                  className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl text-xs font-bold ${e.is_lesson ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
-                >
-                  <Star className="h-4 w-4" /> {e.is_lesson ? "Lesson" : "Mark as lesson"}
-                </button>
+                {e.is_lesson ? (
+                  <span className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-primary text-xs font-bold text-primary-foreground">
+                    <Star className="h-4 w-4" /> Lesson
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setLessonFrom(e)}
+                    className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-secondary text-xs font-bold"
+                  >
+                    <Star className="h-4 w-4" /> Mark as lesson
+                  </button>
+                )}
                 <button
                   onClick={() => patch.mutate({ id: e.id, pinned: !e.pinned })}
                   className={`flex h-10 w-12 items-center justify-center rounded-xl ${e.pinned ? "bg-primary text-primary-foreground" : "bg-secondary"}`}
@@ -129,6 +137,7 @@ function Journal() {
       )}
 
       <EntrySheet open={open} onOpenChange={setOpen} entry={editing} />
+      <LessonFromSheet entry={lessonFrom} onClose={() => setLessonFrom(null)} />
     </AppShell>
   );
 }
@@ -140,10 +149,14 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
   const [type, setType] = useState<EntryType>("reflection");
   const [date, setDate] = useState(todayISO());
   const [confirming, setConfirming] = useState(false);
+  const [markLesson, setMarkLesson] = useState(false);
+  const [lesson, setLesson] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setConfirming(false);
+    setMarkLesson(false);
+    setLesson("");
     if (entry) {
       setText(entry.text);
       setPillar((entry.pillar as Pillar) in PILLARS ? (entry.pillar as Pillar) : "life");
@@ -158,10 +171,13 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
   }, [open, entry]);
 
   const save = useMutation({
-    mutationFn: () =>
-      entry
-        ? updateEntry(entry.id, { text: text.trim(), pillar, entry_type: type, date })
-        : addEntry({ text: text.trim(), pillar, entry_type: type, date }),
+    mutationFn: async () => {
+      if (entry) return updateEntry(entry.id, { text: text.trim(), pillar, entry_type: type, date });
+      await addEntry({ text: text.trim(), pillar, entry_type: type, date });
+      if (markLesson && lesson.trim()) {
+        await addEntry({ text: lesson.trim().slice(0, 500), pillar, entry_type: "lesson", is_lesson: true, date });
+      }
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["journal"] });
       qc.invalidateQueries({ queryKey: ["lessons"] });
@@ -191,6 +207,9 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
       </Field>
       <Field label="Date"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <Field label="Entry"><TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened, and what did you learn?" className="min-h-40" /></Field>
+      {!entry && (
+        <LessonToggle on={markLesson} onToggle={() => setMarkLesson((v) => !v)} value={lesson} onChange={setLesson} />
+      )}
       {entry && confirming ? (
         <div className="rounded-2xl border-2 border-primary bg-secondary p-4">
           <p className="text-sm font-bold">Save these changes? The original entry will be overwritten.</p>
@@ -215,6 +234,34 @@ function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange
           {entry ? "Review changes" : "Save entry"}
         </PrimaryButton>
       )}
+    </FormSheet>
+  );
+}
+
+function LessonFromSheet({ entry, onClose }: { entry: JournalRow | null; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [lesson, setLesson] = useState("");
+  useEffect(() => { if (entry) setLesson(""); }, [entry]);
+  const save = useMutation({
+    mutationFn: () =>
+      addEntry({ text: lesson.trim().slice(0, 500), pillar: (entry?.pillar as Pillar) ?? "life", entry_type: "lesson", is_lesson: true, date: entry?.date ?? todayISO() }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["journal"] });
+      qc.invalidateQueries({ queryKey: ["lessons"] });
+      toast.success("Lesson saved");
+      onClose();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+  return (
+    <FormSheet open={!!entry} onOpenChange={(v) => { if (!v) onClose(); }} title="Pull out the lesson">
+      <p className="text-sm text-muted-foreground">Your full entry stays in the journal. Only this sentence goes into Lessons.</p>
+      <Field label="The lesson — one clean sentence">
+        <TextArea value={lesson} onChange={(e) => setLesson(e.target.value)} placeholder="e.g. Never enter before the 15m candle closes" />
+      </Field>
+      <PrimaryButton onClick={() => save.mutate()} disabled={!lesson.trim() || save.isPending}>
+        {save.isPending ? "Saving…" : "Save lesson"}
+      </PrimaryButton>
     </FormSheet>
   );
 }
