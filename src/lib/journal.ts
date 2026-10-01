@@ -41,6 +41,22 @@ export const lessonsQuery = queryOptions({
   },
 });
 
+/** Formal trading lessons — the actionable rules you keep. */
+export const tradeLessonsQuery = queryOptions({
+  queryKey: ["lessons", "trading"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("journal_entries")
+      .select("*")
+      .eq("is_lesson", true)
+      .eq("pillar", "trading")
+      .order("pinned", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+});
+
 export async function addEntry(input: {
   text: string;
   pillar: Pillar;
