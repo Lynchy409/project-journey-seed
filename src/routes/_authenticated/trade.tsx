@@ -368,6 +368,33 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
       <Field label="Or paste a link"><TextInput value={f.screenshot_url} onChange={(e) => set("screenshot_url", e.target.value)} placeholder="Paste an image link" /></Field>
       <Field label="Emotions"><TextInput value={f.emotions} onChange={(e) => set("emotions", e.target.value)} placeholder="Calm, rushed, revenge…" /></Field>
       <Field label="Review notes (saved to your journal)"><TextArea value={f.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
+
+      <button
+        type="button"
+        onClick={() => setMarkLesson((v) => !v)}
+        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left ${
+          markLesson ? "border-trading bg-trading-soft" : "border-dashed"
+        }`}
+      >
+        <span className="flex items-center gap-2 text-sm font-bold">
+          <GraduationCap className={`h-5 w-5 ${markLesson ? "text-trading" : "text-muted-foreground"}`} />
+          Mark as a lesson
+        </span>
+        <span className={`text-xs font-extrabold uppercase ${markLesson ? "text-trading" : "text-muted-foreground"}`}>
+          {markLesson ? "On" : "Off"}
+        </span>
+      </button>
+
+      {markLesson && (
+        <Field label="The lesson — the rule you take forward">
+          <TextArea
+            value={f.lesson}
+            onChange={(e) => set("lesson", e.target.value)}
+            placeholder="e.g. Never enter before the 15m candle closes"
+          />
+        </Field>
+      )}
+
       <PrimaryButton onClick={() => save.mutate()} disabled={!f.pair.trim() || save.isPending}>Save trade</PrimaryButton>
     </FormSheet>
   );
