@@ -20,8 +20,10 @@ import {
   tradeRulesQuery,
   tradeStats,
   tradesQuery,
+  updateTrade,
   uploadTradeScreenshot,
   type BiasInput,
+  type TradeRow,
   type Trend,
 } from "@/lib/trade";
 import { addEntry, deleteEntry, tradeLessonsQuery, updateEntry } from "@/lib/journal";
@@ -165,6 +167,7 @@ function LogTab() {
   const qc = useQueryClient();
   const { data: trades } = useQuery(tradesQuery);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<TradeRow | null>(null);
   const stats = tradeStats(trades ?? []);
 
   const remove = useMutation({
