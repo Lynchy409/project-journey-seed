@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ImagePlus, Plus, Trash2 } from "lucide-react";
+import { GraduationCap, ImagePlus, Pin, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, Stat, TextArea, TextInput } from "@/components/app/ui";
@@ -24,7 +24,7 @@ import {
   type BiasInput,
   type Trend,
 } from "@/lib/trade";
-import { addEntry } from "@/lib/journal";
+import { addEntry, deleteEntry, tradeLessonsQuery, updateEntry } from "@/lib/journal";
 
 export const Route = createFileRoute("/_authenticated/trade")({
   head: () => ({
@@ -40,20 +40,29 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab = "bias" | "log" | "rules";
+type Tab = "bias" | "log" | "rules" | "lessons";
+
+const TAB_TITLES: Record<Tab, string> = {
+  bias: "Bias tracker",
+  log: "Trade log",
+  rules: "My rules",
+  lessons: "My lessons",
+};
 
 function Trade() {
   const [tab, setTab] = useState<Tab>("bias");
   return (
-    <AppShell eyebrow="Trading" title={tab === "bias" ? "Bias tracker" : tab === "log" ? "Trade log" : "My rules"}>
+    <AppShell eyebrow="Trading" title={TAB_TITLES[tab]}>
       <div className="flex gap-2">
         <Chip active={tab === "bias"} onClick={() => setTab("bias")} className="flex-1">Bias</Chip>
         <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">Log</Chip>
         <Chip active={tab === "rules"} onClick={() => setTab("rules")} className="flex-1">Rules</Chip>
+        <Chip active={tab === "lessons"} onClick={() => setTab("lessons")} className="flex-1">Lessons</Chip>
       </div>
       {tab === "bias" && <BiasTab />}
       {tab === "log" && <LogTab />}
       {tab === "rules" && <RulesTab />}
+      {tab === "lessons" && <LessonsTab />}
     </AppShell>
   );
 }
@@ -243,7 +252,9 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
     emotions: "",
     notes: "",
     screenshot_url: "",
+    lesson: "",
   });
+  const [markLesson, setMarkLesson] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
@@ -276,14 +287,19 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
       if (f.notes.trim()) {
         await addEntry({ text: `${f.pair.toUpperCase()}: ${f.notes.trim()}`, pillar: "trading", entry_type: "trade_review", date: f.date });
       }
+      if (markLesson && f.lesson.trim()) {
+        await addEntry({ text: f.lesson.trim(), pillar: "trading", entry_type: "lesson", is_lesson: true, date: f.date });
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trades"] });
       qc.invalidateQueries({ queryKey: ["journal"] });
-      toast.success("Trade logged");
+      qc.invalidateQueries({ queryKey: ["lessons"] });
+      toast.success(markLesson && f.lesson.trim() ? "Trade logged and lesson saved" : "Trade logged");
       onOpenChange(false);
       pickPhoto(null);
-      setF((s) => ({ ...s, pair: "", entry: "", stop: "", target: "", rr: "", result_r: "", emotions: "", notes: "", screenshot_url: "" }));
+      setMarkLesson(false);
+      setF((s) => ({ ...s, pair: "", entry: "", stop: "", target: "", rr: "", result_r: "", emotions: "", notes: "", screenshot_url: "", lesson: "" }));
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
   });
@@ -352,6 +368,33 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
       <Field label="Or paste a link"><TextInput value={f.screenshot_url} onChange={(e) => set("screenshot_url", e.target.value)} placeholder="Paste an image link" /></Field>
       <Field label="Emotions"><TextInput value={f.emotions} onChange={(e) => set("emotions", e.target.value)} placeholder="Calm, rushed, revenge…" /></Field>
       <Field label="Review notes (saved to your journal)"><TextArea value={f.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
+
+      <button
+        type="button"
+        onClick={() => setMarkLesson((v) => !v)}
+        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left ${
+          markLesson ? "border-trading bg-trading-soft" : "border-dashed"
+        }`}
+      >
+        <span className="flex items-center gap-2 text-sm font-bold">
+          <GraduationCap className={`h-5 w-5 ${markLesson ? "text-trading" : "text-muted-foreground"}`} />
+          Mark as a lesson
+        </span>
+        <span className={`text-xs font-extrabold uppercase ${markLesson ? "text-trading" : "text-muted-foreground"}`}>
+          {markLesson ? "On" : "Off"}
+        </span>
+      </button>
+
+      {markLesson && (
+        <Field label="The lesson — the rule you take forward">
+          <TextArea
+            value={f.lesson}
+            onChange={(e) => set("lesson", e.target.value)}
+            placeholder="e.g. Never enter before the 15m candle closes"
+          />
+        </Field>
+      )}
+
       <PrimaryButton onClick={() => save.mutate()} disabled={!f.pair.trim() || save.isPending}>Save trade</PrimaryButton>
     </FormSheet>
   );
@@ -398,6 +441,78 @@ function RulesTab() {
         <Field label="Add a rule"><TextArea value={text} onChange={(e) => setText(e.target.value)} /></Field>
         <div className="mt-3">
           <PrimaryButton onClick={() => add.mutate()} disabled={!text.trim() || add.isPending}>Add rule</PrimaryButton>
+        </div>
+      </Card>
+    </>
+  );
+}
+
+/* --------------------------------- lessons -------------------------------- */
+
+function LessonsTab() {
+  const qc = useQueryClient();
+  const { data: lessons } = useQuery(tradeLessonsQuery);
+  const [text, setText] = useState("");
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["lessons"] });
+    qc.invalidateQueries({ queryKey: ["journal"] });
+  };
+
+  const add = useMutation({
+    mutationFn: () => addEntry({ text: text.trim(), pillar: "trading", entry_type: "lesson", is_lesson: true }),
+    onSuccess: () => {
+      invalidate();
+      setText("");
+      toast.success("Lesson saved");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+  const pin = useMutation({
+    mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) => updateEntry(id, { pinned }),
+    onSuccess: invalidate,
+  });
+  const remove = useMutation({
+    mutationFn: deleteEntry,
+    onSuccess: invalidate,
+  });
+
+  return (
+    <>
+      <Card>
+        <SectionTitle>Lessons you have earned</SectionTitle>
+        {!lessons?.length ? (
+          <Empty>No lessons yet. Mark a trade review as a lesson, or add one below.</Empty>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {lessons.map((l) => (
+              <li key={l.id} className={`rounded-2xl border p-3 ${l.pinned ? "border-trading bg-trading-soft" : ""}`}>
+                <div className="flex items-start gap-3">
+                  <GraduationCap className="mt-0.5 h-5 w-5 shrink-0 text-trading" />
+                  <p className="flex-1 text-sm font-semibold leading-snug">{l.text}</p>
+                  <button
+                    aria-label={l.pinned ? "Unpin lesson" : "Pin lesson"}
+                    onClick={() => pin.mutate({ id: l.id, pinned: !l.pinned })}
+                    className={l.pinned ? "text-trading" : "text-muted-foreground"}
+                  >
+                    <Pin className="h-4 w-4" />
+                  </button>
+                  <button aria-label="Delete lesson" onClick={() => remove.mutate(l.id)} className="text-muted-foreground">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-2 pl-8 text-xs font-bold text-muted-foreground">{prettyDate(l.date)}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+      <Card>
+        <Field label="New lesson">
+          <TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="The rule you take forward…" />
+        </Field>
+        <div className="mt-3">
+          <PrimaryButton onClick={() => add.mutate()} disabled={!text.trim() || add.isPending}>Add lesson</PrimaryButton>
         </div>
       </Card>
     </>
