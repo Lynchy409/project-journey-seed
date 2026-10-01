@@ -23,7 +23,7 @@ export const Route = createFileRoute("/_authenticated/journal")({
   component: Journal,
 });
 
-type JournalRow = NonNullable<Awaited<ReturnType<typeof journalQuery.queryFn>>>[number];
+type JournalRow = import("@/integrations/supabase/types").Database["public"]["Tables"]["journal_entries"]["Row"];
 
 function Journal() {
   const qc = useQueryClient();
