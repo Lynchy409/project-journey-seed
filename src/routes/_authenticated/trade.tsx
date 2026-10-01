@@ -244,10 +244,19 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
     notes: "",
     screenshot_url: "",
   });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
+  const pickPhoto = (file: File | null) => {
+    if (preview) URL.revokeObjectURL(preview);
+    setPhoto(file);
+    setPreview(file ? URL.createObjectURL(file) : null);
+  };
 
   const save = useMutation({
     mutationFn: async () => {
+      let screenshotUrl: string | null = f.screenshot_url || null;
+      if (photo) screenshotUrl = await uploadTradeScreenshot(photo);
       await addTrade({
         date: f.date,
         time_of_trade: f.time_of_trade || null,
@@ -262,7 +271,7 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
         result_r: f.result_r ? Number(f.result_r) : null,
         emotions: f.emotions || null,
         notes: f.notes || null,
-        screenshot_url: f.screenshot_url || null,
+        screenshot_url: screenshotUrl,
       });
       if (f.notes.trim()) {
         await addEntry({ text: `${f.pair.toUpperCase()}: ${f.notes.trim()}`, pillar: "trading", entry_type: "trade_review", date: f.date });
@@ -273,6 +282,7 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
       qc.invalidateQueries({ queryKey: ["journal"] });
       toast.success("Trade logged");
       onOpenChange(false);
+      pickPhoto(null);
       setF((s) => ({ ...s, pair: "", entry: "", stop: "", target: "", rr: "", result_r: "", emotions: "", notes: "", screenshot_url: "" }));
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
