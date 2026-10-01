@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { GraduationCap, ImagePlus, Pin, Plus, Trash2 } from "lucide-react";
+import { GraduationCap, ImagePlus, Pencil, Pin, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, Stat, TextArea, TextInput } from "@/components/app/ui";
@@ -20,8 +20,10 @@ import {
   tradeRulesQuery,
   tradeStats,
   tradesQuery,
+  updateTrade,
   uploadTradeScreenshot,
   type BiasInput,
+  type TradeRow,
   type Trend,
 } from "@/lib/trade";
 import { addEntry, deleteEntry, tradeLessonsQuery, updateEntry } from "@/lib/journal";
@@ -165,6 +167,7 @@ function LogTab() {
   const qc = useQueryClient();
   const { data: trades } = useQuery(tradesQuery);
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<TradeRow | null>(null);
   const stats = tradeStats(trades ?? []);
 
   const remove = useMutation({
@@ -181,7 +184,7 @@ function LogTab() {
           <Stat label="Total R" value={stats.totalR} tone={stats.totalR >= 0 ? "text-trading" : "text-destructive"} />
         </div>
         <div className="mt-3">
-          <PrimaryButton onClick={() => setOpen(true)}>
+          <PrimaryButton onClick={() => { setEditing(null); setOpen(true); }}>
             <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> Log a trade</span>
           </PrimaryButton>
         </div>
@@ -207,6 +210,9 @@ function LogTab() {
                 >
                   {t.outcome}{t.result_r != null ? ` ${Number(t.result_r) > 0 ? "+" : ""}${Number(t.result_r)}R` : ""}
                 </span>
+                <button aria-label="Edit trade" onClick={() => { setEditing(t); setOpen(true); }} className="text-muted-foreground">
+                  <Pencil className="h-4 w-4" />
+                </button>
                 <button aria-label="Delete trade" onClick={() => remove.mutate(t.id)} className="text-muted-foreground">
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -230,12 +236,12 @@ function LogTab() {
         ))
       )}
 
-      <TradeSheet open={open} onOpenChange={setOpen} />
+      <TradeSheet open={open} onOpenChange={setOpen} trade={editing} />
     </>
   );
 }
 
-function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function TradeSheet({ open, onOpenChange, trade }: { open: boolean; onOpenChange: (v: boolean) => void; trade: TradeRow | null }) {
   const qc = useQueryClient();
   const [f, setF] = useState({
     date: todayISO(),
@@ -258,6 +264,32 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
+
+  useEffect(() => {
+    if (!open) return;
+    if (trade) {
+      setF({
+        date: trade.date,
+        time_of_trade: trade.time_of_trade ? String(trade.time_of_trade).slice(0, 5) : "",
+        pair: trade.pair,
+        strategy: trade.strategy,
+        direction: trade.direction,
+        entry: trade.entry != null ? String(trade.entry) : "",
+        stop: trade.stop != null ? String(trade.stop) : "",
+        target: trade.target != null ? String(trade.target) : "",
+        rr: trade.rr != null ? String(trade.rr) : "",
+        outcome: trade.outcome,
+        result_r: trade.result_r != null ? String(trade.result_r) : "",
+        emotions: trade.emotions ?? "",
+        notes: trade.notes ?? "",
+        screenshot_url: trade.screenshot_url ?? "",
+        lesson: "",
+      });
+      setMarkLesson(false);
+      setPhoto(null);
+      setPreview(trade.screenshot_url ?? null);
+    }
+  }, [open, trade]);
   const pickPhoto = (file: File | null) => {
     if (preview) URL.revokeObjectURL(preview);
     setPhoto(file);
@@ -268,7 +300,7 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
     mutationFn: async () => {
       let screenshotUrl: string | null = f.screenshot_url || null;
       if (photo) screenshotUrl = await uploadTradeScreenshot(photo);
-      await addTrade({
+      const payload = {
         date: f.date,
         time_of_trade: f.time_of_trade || null,
         pair: f.pair.trim().toUpperCase(),
@@ -283,19 +315,24 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
         emotions: f.emotions || null,
         notes: f.notes || null,
         screenshot_url: screenshotUrl,
-      });
-      if (f.notes.trim()) {
-        await addEntry({ text: `${f.pair.toUpperCase()}: ${f.notes.trim()}`, pillar: "trading", entry_type: "trade_review", date: f.date });
-      }
-      if (markLesson && f.lesson.trim()) {
-        await addEntry({ text: f.lesson.trim(), pillar: "trading", entry_type: "lesson", is_lesson: true, date: f.date });
+      };
+      if (trade) {
+        await updateTrade(trade.id, payload);
+      } else {
+        await addTrade(payload);
+        if (f.notes.trim()) {
+          await addEntry({ text: `${f.pair.toUpperCase()}: ${f.notes.trim()}`, pillar: "trading", entry_type: "trade_review", date: f.date });
+        }
+        if (markLesson && f.lesson.trim()) {
+          await addEntry({ text: f.lesson.trim(), pillar: "trading", entry_type: "lesson", is_lesson: true, date: f.date });
+        }
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["trades"] });
       qc.invalidateQueries({ queryKey: ["journal"] });
       qc.invalidateQueries({ queryKey: ["lessons"] });
-      toast.success(markLesson && f.lesson.trim() ? "Trade logged and lesson saved" : "Trade logged");
+      toast.success(trade ? "Trade updated" : markLesson && f.lesson.trim() ? "Trade logged and lesson saved" : "Trade logged");
       onOpenChange(false);
       pickPhoto(null);
       setMarkLesson(false);
@@ -305,7 +342,7 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
   });
 
   return (
-    <FormSheet open={open} onOpenChange={onOpenChange} title="Log a trade">
+    <FormSheet open={open} onOpenChange={onOpenChange} title={trade ? "Edit trade" : "Log a trade"}>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Date"><TextInput type="date" value={f.date} onChange={(e) => set("date", e.target.value)} /></Field>
         <Field label="Time of trade"><TextInput type="time" value={f.time_of_trade} onChange={(e) => set("time_of_trade", e.target.value)} /></Field>
@@ -369,33 +406,39 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
       <Field label="Emotions"><TextInput value={f.emotions} onChange={(e) => set("emotions", e.target.value)} placeholder="Calm, rushed, revenge…" /></Field>
       <Field label="Review notes (saved to your journal)"><TextArea value={f.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
 
-      <button
-        type="button"
-        onClick={() => setMarkLesson((v) => !v)}
-        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left ${
-          markLesson ? "border-trading bg-trading-soft" : "border-dashed"
-        }`}
-      >
-        <span className="flex items-center gap-2 text-sm font-bold">
-          <GraduationCap className={`h-5 w-5 ${markLesson ? "text-trading" : "text-muted-foreground"}`} />
-          Mark as a lesson
-        </span>
-        <span className={`text-xs font-extrabold uppercase ${markLesson ? "text-trading" : "text-muted-foreground"}`}>
-          {markLesson ? "On" : "Off"}
-        </span>
-      </button>
+      {!trade && (
+        <>
+          <button
+            type="button"
+            onClick={() => setMarkLesson((v) => !v)}
+            className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3 text-left ${
+              markLesson ? "border-trading bg-trading-soft" : "border-dashed"
+            }`}
+          >
+            <span className="flex items-center gap-2 text-sm font-bold">
+              <GraduationCap className={`h-5 w-5 ${markLesson ? "text-trading" : "text-muted-foreground"}`} />
+              Mark as a lesson
+            </span>
+            <span className={`text-xs font-extrabold uppercase ${markLesson ? "text-trading" : "text-muted-foreground"}`}>
+              {markLesson ? "On" : "Off"}
+            </span>
+          </button>
 
-      {markLesson && (
-        <Field label="The lesson — the rule you take forward">
-          <TextArea
-            value={f.lesson}
-            onChange={(e) => set("lesson", e.target.value)}
-            placeholder="e.g. Never enter before the 15m candle closes"
-          />
-        </Field>
+          {markLesson && (
+            <Field label="The lesson — the rule you take forward">
+              <TextArea
+                value={f.lesson}
+                onChange={(e) => set("lesson", e.target.value)}
+                placeholder="e.g. Never enter before the 15m candle closes"
+              />
+            </Field>
+          )}
+        </>
       )}
 
-      <PrimaryButton onClick={() => save.mutate()} disabled={!f.pair.trim() || save.isPending}>Save trade</PrimaryButton>
+      <PrimaryButton onClick={() => save.mutate()} disabled={!f.pair.trim() || save.isPending}>
+        {trade ? "Save changes" : "Save trade"}
+      </PrimaryButton>
     </FormSheet>
   );
 }

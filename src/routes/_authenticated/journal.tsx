@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pin, Plus, Star, Trash2 } from "lucide-react";
+import { Pencil, Pin, Plus, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, TextArea, TextInput } from "@/components/app/ui";
@@ -23,6 +23,8 @@ export const Route = createFileRoute("/_authenticated/journal")({
   component: Journal,
 });
 
+type JournalRow = import("@/integrations/supabase/types").Database["public"]["Tables"]["journal_entries"]["Row"];
+
 function Journal() {
   const qc = useQueryClient();
   const { data: entries } = useQuery(journalQuery);
@@ -30,6 +32,7 @@ function Journal() {
   const [type, setType] = useState<EntryType | "all" | "lessons">("all");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<JournalRow | null>(null);
 
   const filtered = (entries ?? []).filter((e) => {
     if (pillar !== "all" && e.pillar !== pillar) return false;
@@ -57,7 +60,7 @@ function Journal() {
 
   return (
     <AppShell eyebrow="Journal" title="Your memory">
-      <PrimaryButton onClick={() => setOpen(true)}>
+      <PrimaryButton onClick={() => { setEditing(null); setOpen(true); }}>
         <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> New entry</span>
       </PrimaryButton>
 
@@ -95,9 +98,14 @@ function Journal() {
                     {ENTRY_TYPES.find((t) => t.value === e.entry_type)?.label ?? e.entry_type} · {prettyDate(e.date)}
                   </span>
                 </div>
-                <button aria-label="Delete entry" onClick={() => remove.mutate(e.id)} className="shrink-0 text-muted-foreground">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button aria-label="Edit entry" onClick={() => { setEditing(e); setOpen(true); }} className="text-muted-foreground">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button aria-label="Delete entry" onClick={() => remove.mutate(e.id)} className="text-muted-foreground">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
               <p className="mt-3 whitespace-pre-wrap text-base font-medium leading-snug">{e.text}</p>
               <div className="mt-3 flex gap-2">
@@ -120,32 +128,53 @@ function Journal() {
         })
       )}
 
-      <EntrySheet open={open} onOpenChange={setOpen} />
+      <EntrySheet open={open} onOpenChange={setOpen} entry={editing} />
     </AppShell>
   );
 }
 
-function EntrySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function EntrySheet({ open, onOpenChange, entry }: { open: boolean; onOpenChange: (v: boolean) => void; entry: JournalRow | null }) {
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [pillar, setPillar] = useState<Pillar>("life");
   const [type, setType] = useState<EntryType>("reflection");
   const [date, setDate] = useState(todayISO());
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setConfirming(false);
+    if (entry) {
+      setText(entry.text);
+      setPillar((entry.pillar as Pillar) in PILLARS ? (entry.pillar as Pillar) : "life");
+      setType(entry.entry_type as EntryType);
+      setDate(entry.date);
+    } else {
+      setText("");
+      setPillar("life");
+      setType("reflection");
+      setDate(todayISO());
+    }
+  }, [open, entry]);
 
   const save = useMutation({
-    mutationFn: () => addEntry({ text: text.trim(), pillar, entry_type: type, date }),
+    mutationFn: () =>
+      entry
+        ? updateEntry(entry.id, { text: text.trim(), pillar, entry_type: type, date })
+        : addEntry({ text: text.trim(), pillar, entry_type: type, date }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["journal"] });
       qc.invalidateQueries({ queryKey: ["lessons"] });
       setText("");
+      setConfirming(false);
       onOpenChange(false);
-      toast.success("Saved to your journal");
+      toast.success(entry ? "Changes saved" : "Saved to your journal");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
   });
 
   return (
-    <FormSheet open={open} onOpenChange={onOpenChange} title="New journal entry">
+    <FormSheet open={open} onOpenChange={onOpenChange} title={entry ? "Edit entry" : "New journal entry"}>
       <Field label="Pillar">
         <div className="flex gap-2">
           {(Object.keys(PILLARS) as Pillar[]).map((p) => (
@@ -162,7 +191,30 @@ function EntrySheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
       </Field>
       <Field label="Date"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
       <Field label="Entry"><TextArea value={text} onChange={(e) => setText(e.target.value)} placeholder="What happened, and what did you learn?" className="min-h-40" /></Field>
-      <PrimaryButton onClick={() => save.mutate()} disabled={!text.trim() || save.isPending}>Save entry</PrimaryButton>
+      {entry && confirming ? (
+        <div className="rounded-2xl border-2 border-primary bg-secondary p-4">
+          <p className="text-sm font-bold">Save these changes? The original entry will be overwritten.</p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirming(false)}
+              className="flex h-12 flex-1 items-center justify-center rounded-2xl border text-sm font-bold text-muted-foreground"
+            >
+              Keep editing
+            </button>
+            <PrimaryButton className="flex-1" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? "Saving…" : "Yes, save changes"}
+            </PrimaryButton>
+          </div>
+        </div>
+      ) : (
+        <PrimaryButton
+          onClick={() => (entry ? setConfirming(true) : save.mutate())}
+          disabled={!text.trim() || save.isPending}
+        >
+          {entry ? "Review changes" : "Save entry"}
+        </PrimaryButton>
+      )}
     </FormSheet>
   );
 }

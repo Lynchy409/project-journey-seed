@@ -60,6 +60,7 @@ export const tradesQuery = queryOptions({
   },
 });
 
+export type TradeRow = Database["public"]["Tables"]["trades"]["Row"];
 type TradeInsert = Omit<Database["public"]["Tables"]["trades"]["Insert"], "user_id">;
 type TradeUpdate = Database["public"]["Tables"]["trades"]["Update"];
 
