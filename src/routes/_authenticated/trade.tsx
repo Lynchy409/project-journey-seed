@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { GraduationCap, ImagePlus, Pencil, Pin, Plus, Sunrise, Trash2 } from "lucide-react";
+import { ExternalLink, GraduationCap, ImagePlus, Newspaper, Pencil, Pin, Plus, Sunrise, Trash2 } from "lucide-react";
+import { getNewsEvents, type NewsEvent } from "@/lib/news.functions";
 import { LessonToggle } from "@/components/app/LessonToggle";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
@@ -602,5 +603,99 @@ function RecapSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
         {save.isPending ? "Saving…" : "Save recap"}
       </PrimaryButton>
     </FormSheet>
+  );
+}
+
+/* ---------------------------------- news ---------------------------------- */
+
+function newsDayLabel(date: string): string {
+  const [m, d, y] = date.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const today = new Date();
+  const isToday =
+    dt.getFullYear() === today.getFullYear() &&
+    dt.getMonth() === today.getMonth() &&
+    dt.getDate() === today.getDate();
+  const base = dt.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+  return isToday ? `Today · ${base}` : base;
+}
+
+function NewsTab() {
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+    queryKey: ["ff-news"],
+    queryFn: () => getNewsEvents(),
+    staleTime: 1000 * 60 * 30,
+  });
+
+  if (isLoading) return <Empty>Loading this week's news…</Empty>;
+  if (isError || !data)
+    return (
+      <Empty>
+        Couldn't load the calendar.{" "}
+        <button className="font-semibold text-trading" onClick={() => refetch()}>
+          Try again
+        </button>
+      </Empty>
+    );
+
+  const days = new Map<string, NewsEvent[]>();
+  for (const e of data) {
+    const list = days.get(e.date) ?? [];
+    list.push(e);
+    days.set(e.date, list);
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card className="flex items-center gap-3 !py-3">
+        <Newspaper className="h-5 w-5 shrink-0 text-trading" />
+        <p className="flex-1 text-xs text-muted-foreground">
+          Red & orange events for EUR · USD · GBP · JPY. Times are New York.
+        </p>
+        <button
+          className="text-xs font-semibold text-trading"
+          onClick={() => refetch()}
+          disabled={isRefetching}
+        >
+          {isRefetching ? "…" : "Refresh"}
+        </button>
+      </Card>
+      {days.size === 0 && <Empty>No high or medium impact events this week.</Empty>}
+      {[...days.entries()].map(([date, events]) => (
+        <div key={date}>
+          <SectionTitle>{newsDayLabel(date)}</SectionTitle>
+          <div className="space-y-2">
+            {events.map((e, i) => (
+              <Card key={`${e.title}-${i}`} className="flex items-center gap-3 !py-3">
+                <span
+                  className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                    e.impact === "High" ? "bg-red-500" : "bg-orange-400"
+                  }`}
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">{e.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {e.currency} · {e.time || "All day"}
+                    {e.forecast ? ` · F ${e.forecast}` : ""}
+                    {e.previous ? ` · P ${e.previous}` : ""}
+                  </p>
+                </div>
+                {e.url && (
+                  <a
+                    href={e.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 text-muted-foreground"
+                    aria-label="Open on Forex Factory"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                )}
+              </Card>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
