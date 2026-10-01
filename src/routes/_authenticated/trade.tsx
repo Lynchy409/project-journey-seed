@@ -244,6 +244,7 @@ function LogTab() {
               <Stat label="Target" value={t.target ?? "—"} />
               <Stat label="RR" value={t.rr ?? "—"} />
             </div>
+            <TradeNews events={t.news_events} />
             {t.screenshot_url && (
               <img src={t.screenshot_url} alt={`${t.pair} chart`} className="mt-3 w-full rounded-2xl border object-cover" />
             )}
@@ -332,6 +333,7 @@ function TradeSheet({ open, onOpenChange, trade }: { open: boolean; onOpenChange
         emotions: f.emotions || null,
         notes: f.notes || null,
         screenshot_url: screenshotUrl,
+        news_events: (await snapshotNews(f.date)) ?? (trade && trade.date === f.date ? trade.news_events : null),
       };
       if (trade) {
         await updateTrade(trade.id, payload);
@@ -610,6 +612,54 @@ function RecapSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
 }
 
 /* ---------------------------------- news ---------------------------------- */
+
+type SavedNews = { title: string; currency: string; impact: string; uk: string };
+
+/** Red/orange events on a London date, or null when the date is outside this week's feed. */
+async function snapshotNews(dateKey: string): Promise<SavedNews[] | null> {
+  try {
+    const data = await getNewsEvents();
+    const rows = data.map((e) => {
+      const at = newsInstant(e.date, e.time);
+      const [m = "01", d = "01", y = "1970"] = e.date.split("-");
+      return { e, at, key: at ? londonDay(at) : `${y}-${m}-${d}` };
+    });
+    const keys = rows.map((r) => r.key).sort();
+    if (!keys.length || dateKey < keys[0]! || dateKey > keys[keys.length - 1]!) return null;
+    return rows
+      .filter((r) => r.key === dateKey)
+      .sort((a, b) => (a.at?.getTime() ?? 0) - (b.at?.getTime() ?? 0))
+      .map((r) => ({ title: r.e.title, currency: r.e.currency, impact: r.e.impact, uk: r.at ? londonTime(r.at) : r.e.time || "All day" }));
+  } catch {
+    return null;
+  }
+}
+
+function TradeNews({ events }: { events: unknown }) {
+  if (!Array.isArray(events)) return null;
+  const list = events as SavedNews[];
+  return (
+    <div className="mt-3 rounded-2xl bg-secondary p-3">
+      <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <Newspaper className="h-3.5 w-3.5" /> News that day
+      </p>
+      {list.length === 0 ? (
+        <p className="mt-1 text-sm font-medium text-muted-foreground">No red or orange news</p>
+      ) : (
+        <ul className="mt-1.5 space-y-1">
+          {list.map((n, i) => (
+            <li key={i} className="flex items-center gap-2 text-sm font-medium">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${n.impact === "High" ? "bg-destructive" : "bg-fitness"}`} />
+              <span className="w-11 shrink-0 tabular-nums text-muted-foreground">{n.uk}</span>
+              <span className="font-bold">{n.currency}</span>
+              <span className="truncate">{n.title}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 function tzOffset(ms: number, tz: string): number {
   const p = Object.fromEntries(
