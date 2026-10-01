@@ -1,0 +1,1 @@
+ALTER TABLE public.inner_items ADD COLUMN output text, ADD COLUMN score integer, ADD COLUMN max_score integer;

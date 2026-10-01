@@ -35,6 +35,16 @@ export async function toggleInnerItem(id: string, done: boolean) {
   if (error) throw error;
 }
 
+export async function completeQuest(id: string, output: string, score: number | null, max: number | null) {
+  const { error } = await supabase.from("inner_items").update({ done: true, output, score, max_score: max }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function undoQuest(id: string) {
+  const { error } = await supabase.from("inner_items").update({ done: false, output: null, score: null, max_score: null }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function deleteInnerItem(id: string) {
   const { error } = await supabase.from("inner_items").delete().eq("id", id);
   if (error) throw error;
