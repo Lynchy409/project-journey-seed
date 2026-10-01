@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Sun, CalendarDays, CandlestickChart, Dumbbell, BookOpen } from "lucide-react";
+import { Sun, CalendarDays, CandlestickChart, Dumbbell, BookOpen, Sparkles } from "lucide-react";
 
 const TABS = [
   { to: "/today", label: "Today", icon: Sun },
@@ -7,6 +7,7 @@ const TABS = [
   { to: "/trade", label: "Trade", icon: CandlestickChart },
   { to: "/train", label: "Train", icon: Dumbbell },
   { to: "/learn", label: "Learn", icon: BookOpen },
+  { to: "/inner", label: "Inner", icon: Sparkles },
 ] as const;
 
 export function BottomNav() {
@@ -22,7 +23,7 @@ export function BottomNav() {
             >
               {({ isActive }) => (
                 <>
-                  <span className={`flex h-8 w-12 items-center justify-center rounded-full transition-all ${isActive ? "bg-secondary scale-105" : ""}`}>
+                  <span className={`flex h-8 w-11 items-center justify-center rounded-full transition-all ${isActive ? "bg-secondary scale-105" : ""}`}>
                     <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
                   </span>
                   {label}
