@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2 } from "lucide-react";
+import { ImagePlus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, Stat, TextArea, TextInput } from "@/components/app/ui";
@@ -20,6 +20,7 @@ import {
   tradeRulesQuery,
   tradeStats,
   tradesQuery,
+  uploadTradeScreenshot,
   type BiasInput,
   type Trend,
 } from "@/lib/trade";
@@ -243,10 +244,19 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
     notes: "",
     screenshot_url: "",
   });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const set = (k: keyof typeof f, v: string) => setF((s) => ({ ...s, [k]: v }));
+  const pickPhoto = (file: File | null) => {
+    if (preview) URL.revokeObjectURL(preview);
+    setPhoto(file);
+    setPreview(file ? URL.createObjectURL(file) : null);
+  };
 
   const save = useMutation({
     mutationFn: async () => {
+      let screenshotUrl: string | null = f.screenshot_url || null;
+      if (photo) screenshotUrl = await uploadTradeScreenshot(photo);
       await addTrade({
         date: f.date,
         time_of_trade: f.time_of_trade || null,
@@ -261,7 +271,7 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
         result_r: f.result_r ? Number(f.result_r) : null,
         emotions: f.emotions || null,
         notes: f.notes || null,
-        screenshot_url: f.screenshot_url || null,
+        screenshot_url: screenshotUrl,
       });
       if (f.notes.trim()) {
         await addEntry({ text: `${f.pair.toUpperCase()}: ${f.notes.trim()}`, pillar: "trading", entry_type: "trade_review", date: f.date });
@@ -272,6 +282,7 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
       qc.invalidateQueries({ queryKey: ["journal"] });
       toast.success("Trade logged");
       onOpenChange(false);
+      pickPhoto(null);
       setF((s) => ({ ...s, pair: "", entry: "", stop: "", target: "", rr: "", result_r: "", emotions: "", notes: "", screenshot_url: "" }));
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
@@ -309,7 +320,36 @@ function TradeSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
         </div>
       </Field>
       <Field label="Result in R"><TextInput inputMode="decimal" value={f.result_r} onChange={(e) => set("result_r", e.target.value)} placeholder="e.g. 2 or -1" /></Field>
-      <Field label="Screenshot link"><TextInput value={f.screenshot_url} onChange={(e) => set("screenshot_url", e.target.value)} placeholder="Paste an image link" /></Field>
+      <Field label="Chart screenshot">
+        {preview ? (
+          <div className="space-y-2">
+            <img src={preview} alt="Chart screenshot preview" className="max-h-56 w-full rounded-2xl border object-cover" />
+            <button
+              type="button"
+              onClick={() => pickPhoto(null)}
+              className="flex h-12 w-full items-center justify-center rounded-2xl border text-sm font-bold text-muted-foreground"
+            >
+              Remove photo
+            </button>
+          </div>
+        ) : (
+          <label className="flex h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-sm font-bold text-muted-foreground">
+            <ImagePlus className="h-5 w-5" />
+            Add from camera roll
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) pickPhoto(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        )}
+      </Field>
+      <Field label="Or paste a link"><TextInput value={f.screenshot_url} onChange={(e) => set("screenshot_url", e.target.value)} placeholder="Paste an image link" /></Field>
       <Field label="Emotions"><TextInput value={f.emotions} onChange={(e) => set("emotions", e.target.value)} placeholder="Calm, rushed, revenge…" /></Field>
       <Field label="Review notes (saved to your journal)"><TextArea value={f.notes} onChange={(e) => set("notes", e.target.value)} /></Field>
       <PrimaryButton onClick={() => save.mutate()} disabled={!f.pair.trim() || save.isPending}>Save trade</PrimaryButton>

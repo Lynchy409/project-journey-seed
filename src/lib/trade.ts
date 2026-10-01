@@ -74,6 +74,22 @@ export async function updateTrade(id: string, patch: TradeUpdate) {
   if (error) throw error;
 }
 
+/** Uploads a chart screenshot to private storage and returns a long-lived signed link. */
+export async function uploadTradeScreenshot(file: File): Promise<string> {
+  const user = await uid();
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "screenshot.jpg";
+  const path = `${user}/${Date.now()}-${safe}`;
+  const { error } = await supabase.storage.from("trade-screenshots").upload(path, file, {
+    contentType: file.type || "image/jpeg",
+  });
+  if (error) throw error;
+  const { data, error: urlError } = await supabase.storage
+    .from("trade-screenshots")
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+  if (urlError || !data) throw urlError ?? new Error("Could not get image link");
+  return data.signedUrl;
+}
+
 export async function deleteTrade(id: string) {
   const { error } = await supabase.from("trades").delete().eq("id", id);
   if (error) throw error;
