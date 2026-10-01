@@ -7,9 +7,11 @@ import { AppShell, Card } from "@/components/app/AppShell";
 import { Bar, Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, TextArea, TextInput } from "@/components/app/ui";
 import { DOW, prettyDate, todayISO } from "@/lib/dates";
 import { addEntry } from "@/lib/journal";
+import { useServerFn } from "@tanstack/react-start";
+import { generateQuiz, type QuizQuestion } from "@/lib/inner.functions";
 import {
   LIFE_QUESTS, PROMPTS, SKILL_IDEAS, addInnerItems, deleteInnerItem, innerItemsQuery, levelFor, pick,
-  promoteCuriosity, sprintPlan, toggleInnerItem, weekRange, type InnerItem,
+  completeQuest, promoteCuriosity, sprintPlan, undoQuest, weekRange, type InnerItem,
 } from "@/lib/inner";
 
 export const Route = createFileRoute("/_authenticated/inner")({
@@ -62,13 +64,7 @@ function QuestMap() {
   const lvl = levelFor(quests.filter((q) => q.done).length);
   const weekDone = weekQuests.filter((q) => q.done).length;
 
-  const toggle = useMutation({
-    mutationFn: (q: InnerItem) => toggleInnerItem(q.id, !q.done),
-    onSuccess: (_d, q) => {
-      qc.invalidateQueries({ queryKey: ["inner_items"] });
-      if (!q.done) toast.success("+10 XP — level cleared!");
-    },
-  });
+  const [proof, setProof] = useState<InnerItem | null>(null);
   const remove = useMutation({
     mutationFn: deleteInnerItem,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["inner_items"] }),
@@ -110,7 +106,7 @@ function QuestMap() {
               <div key={q.id} className={`relative flex items-center gap-3 py-2 ${offset}`}>
                 <button
                   aria-label={q.done ? "Undo quest" : "Complete quest"}
-                  onClick={() => toggle.mutate(q)}
+                  onClick={() => setProof(q)}
                   className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-4 shadow-float transition-all active:scale-90 ${
                     q.done
                       ? "border-life bg-life text-primary-foreground"
@@ -126,6 +122,9 @@ function QuestMap() {
                     {q.date === today ? "Today" : DOW[dayIdx] ?? ""}{q.skill ? ` · ${q.skill}` : ""}
                   </p>
                   <p className={`text-sm font-bold leading-snug ${q.done ? "text-muted-foreground line-through" : ""}`}>{q.title}</p>
+                  {q.done && q.max_score ? (
+                    <span className="mt-1 inline-block rounded-full bg-life-soft px-2 py-0.5 text-[11px] font-extrabold text-life">Quiz {q.score}/{q.max_score}</span>
+                  ) : null}
                 </div>
                 <button aria-label="Delete quest" onClick={() => remove.mutate(q.id)} className="p-2 text-muted-foreground">
                   <Trash2 className="h-4 w-4" />
@@ -142,8 +141,99 @@ function QuestMap() {
         </div>
       )}
 
+      {proof && <ProofSheet quest={proof} onClose={() => setProof(null)} />}
       <QuestSheet open={adding} onOpenChange={setAdding} week={week} />
     </>
+  );
+}
+
+function ProofSheet({ quest, onClose }: { quest: InnerItem; onClose: () => void }) {
+  const qc = useQueryClient();
+  const quizFn = useServerFn(generateQuiz);
+  const [output, setOutput] = useState("");
+  const [quiz, setQuiz] = useState<QuizQuestion[] | null>(null);
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const needsQuiz = !!quest.skill;
+  const MIN = 20;
+
+  const load = useMutation({
+    mutationFn: () => quizFn({ data: { skill: quest.skill ?? quest.title, quest: quest.title } }),
+    onSuccess: (q) => { setQuiz(q); setAnswers({}); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not load quiz"),
+  });
+  const allAnswered = quiz ? quiz.every((_, i) => answers[i] !== undefined) : false;
+  const score = quiz ? quiz.filter((q, i) => answers[i] === q.answer).length : 0;
+  const ready = output.trim().length >= MIN && (!needsQuiz || allAnswered);
+
+  const done = useMutation({
+    mutationFn: () => completeQuest(quest.id, output.trim().slice(0, 5000), needsQuiz ? score : null, needsQuiz ? quiz!.length : null),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["inner_items"] });
+      toast.success(needsQuiz ? `+10 XP — quiz ${score}/${quiz!.length}` : "+10 XP — level cleared!");
+      onClose();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+  const undo = useMutation({
+    mutationFn: () => undoQuest(quest.id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["inner_items"] }); onClose(); },
+  });
+
+  return (
+    <FormSheet open onOpenChange={(v) => !v && onClose()} title={quest.title}>
+      {quest.done ? (
+        <>
+          {quest.max_score ? <p className="text-3xl font-extrabold text-life">{quest.score}/{quest.max_score}</p> : null}
+          <Field label="Your proof"><p className="whitespace-pre-wrap rounded-2xl bg-secondary p-4 text-sm font-medium">{quest.output ?? "—"}</p></Field>
+          <button onClick={() => undo.mutate()} className="h-12 w-full rounded-2xl border text-sm font-bold text-muted-foreground">Reopen quest</button>
+        </>
+      ) : (
+        <>
+          <Field label="Proof — what did you do / learn?">
+            <TextArea rows={5} value={output} onChange={(e) => setOutput(e.target.value)} placeholder="Write what you did, what you learned, or how it went…" />
+          </Field>
+          <p className={`text-xs font-bold ${output.trim().length >= MIN ? "text-life" : "text-muted-foreground"}`}>
+            {Math.min(output.trim().length, MIN)}/{MIN} characters minimum
+          </p>
+          {needsQuiz && (
+            <Card>
+              <SectionTitle>Knowledge check · {quest.skill}</SectionTitle>
+              {!quiz ? (
+                <button disabled={load.isPending} onClick={() => load.mutate()} className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-life text-sm font-extrabold text-primary-foreground disabled:opacity-50">
+                  <Sparkles className="h-4 w-4" /> {load.isPending ? "Writing your quiz…" : "Start 5-question quiz"}
+                </button>
+              ) : (
+                <div className="mt-2 space-y-4">
+                  {quiz.map((q, i) => (
+                    <div key={i}>
+                      <p className="mb-2 text-sm font-extrabold">{i + 1}. {q.q}</p>
+                      <div className="space-y-1.5">
+                        {q.options.map((o, j) => {
+                          const picked = answers[i] === j;
+                          const reveal = allAnswered;
+                          const tone = reveal
+                            ? j === q.answer ? "border-life bg-life-soft" : picked ? "border-destructive bg-destructive/10" : ""
+                            : picked ? "border-foreground bg-secondary" : "";
+                          return (
+                            <button key={j} disabled={reveal} onClick={() => setAnswers((a) => ({ ...a, [i]: j }))}
+                              className={`min-h-12 w-full rounded-2xl border px-3 py-2 text-left text-sm font-semibold ${tone}`}>{o}</button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                  {allAnswered && <p className="text-center text-3xl font-extrabold text-life">{score}/{quiz.length}</p>}
+                </div>
+              )}
+              <p className="mt-2 text-[11px] font-bold text-muted-foreground">Questions written by AI — double-check anything that looks off.</p>
+            </Card>
+          )}
+          <PrimaryButton disabled={!ready || done.isPending} onClick={() => done.mutate()}>
+            {ready ? "Complete quest" : needsQuiz && !allAnswered ? "Write proof + finish quiz" : "Write your proof"}
+          </PrimaryButton>
+        </>
+      )}
+    </FormSheet>
   );
 }
 
