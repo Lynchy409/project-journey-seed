@@ -98,9 +98,14 @@ function Journal() {
                     {ENTRY_TYPES.find((t) => t.value === e.entry_type)?.label ?? e.entry_type} · {prettyDate(e.date)}
                   </span>
                 </div>
-                <button aria-label="Delete entry" onClick={() => remove.mutate(e.id)} className="shrink-0 text-muted-foreground">
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button aria-label="Edit entry" onClick={() => { setEditing(e); setOpen(true); }} className="text-muted-foreground">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button aria-label="Delete entry" onClick={() => remove.mutate(e.id)} className="text-muted-foreground">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
               <p className="mt-3 whitespace-pre-wrap text-base font-medium leading-snug">{e.text}</p>
               <div className="mt-3 flex gap-2">
@@ -123,7 +128,7 @@ function Journal() {
         })
       )}
 
-      <EntrySheet open={open} onOpenChange={setOpen} />
+      <EntrySheet open={open} onOpenChange={setOpen} entry={editing} />
     </AppShell>
   );
 }
