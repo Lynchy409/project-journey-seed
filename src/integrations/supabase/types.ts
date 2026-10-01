@@ -861,6 +861,7 @@ export type Database = {
           emotions: string | null
           entry: number | null
           id: string
+          news_events: Json | null
           notes: string | null
           outcome: string
           pair: string
@@ -881,6 +882,7 @@ export type Database = {
           emotions?: string | null
           entry?: number | null
           id?: string
+          news_events?: Json | null
           notes?: string | null
           outcome?: string
           pair: string
@@ -901,6 +903,7 @@ export type Database = {
           emotions?: string | null
           entry?: number | null
           id?: string
+          news_events?: Json | null
           notes?: string | null
           outcome?: string
           pair?: string
