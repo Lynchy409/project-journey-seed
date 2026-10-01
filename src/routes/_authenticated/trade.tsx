@@ -545,3 +545,59 @@ function LessonsTab() {
     </>
   );
 }
+
+/* ------------------------------ session recap ------------------------------ */
+
+function RecapSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const qc = useQueryClient();
+  const [date, setDate] = useState(todayISO());
+  const [followed, setFollowed] = useState<"yes" | "no" | null>(null);
+  const [notes, setNotes] = useState("");
+  const [markLesson, setMarkLesson] = useState(false);
+  const [lesson, setLesson] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setDate(todayISO());
+    setFollowed(null);
+    setNotes("");
+    setMarkLesson(false);
+    setLesson("");
+  }, [open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const header = `London session recap · Rules followed: ${followed === "yes" ? "Yes" : "No"}`;
+      await addEntry({ text: notes.trim() ? `${header}\n\n${notes.trim().slice(0, 5000)}` : header, pillar: "trading", entry_type: "session_note", date });
+      if (markLesson && lesson.trim()) {
+        await addEntry({ text: lesson.trim().slice(0, 500), pillar: "trading", entry_type: "lesson", is_lesson: true, date });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["journal"] });
+      qc.invalidateQueries({ queryKey: ["lessons"] });
+      toast.success(markLesson && lesson.trim() ? "Recap saved and lesson added" : "Recap saved to your journal");
+      onOpenChange(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+
+  return (
+    <FormSheet open={open} onOpenChange={onOpenChange} title="London session recap">
+      <Field label="Date"><TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field>
+      <Field label="Did you follow your rules?">
+        <div className="flex gap-2">
+          <Chip active={followed === "yes"} onClick={() => setFollowed("yes")} className="flex-1">Yes</Chip>
+          <Chip active={followed === "no"} onClick={() => setFollowed("no")} className="flex-1">No</Chip>
+        </div>
+      </Field>
+      <Field label="Session notes (saved to your journal)">
+        <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did London open play out? What did you do well?" className="min-h-32" />
+      </Field>
+      <LessonToggle on={markLesson} onToggle={() => setMarkLesson((v) => !v)} value={lesson} onChange={setLesson} />
+      <PrimaryButton onClick={() => save.mutate()} disabled={!followed || save.isPending}>
+        {save.isPending ? "Saving…" : "Save recap"}
+      </PrimaryButton>
+    </FormSheet>
+  );
+}
