@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CorreRouteImport } from './routes/corre'
 import { Route as AuthenticatedInnerRouteImport } from './routes/_authenticated/inner'
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedLearnRouteImport } from './routes/_authenticated/learn'
@@ -35,6 +36,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CorreRoute = CorreRouteImport.update({
+  id: '/corre',
+  path: '/corre',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedInnerRoute = AuthenticatedInnerRouteImport.update({
@@ -91,6 +97,7 @@ const AuthenticatedTrainRoute = AuthenticatedTrainRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/corre': typeof CorreRoute
   '/inner': typeof AuthenticatedInnerRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/learn': typeof AuthenticatedLearnRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/corre': typeof CorreRoute
   '/inner': typeof AuthenticatedInnerRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/learn': typeof AuthenticatedLearnRoute
@@ -121,6 +129,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/corre': typeof CorreRoute
   '/_authenticated/inner': typeof AuthenticatedInnerRoute
   '/_authenticated/journal': typeof AuthenticatedJournalRoute
   '/_authenticated/learn': typeof AuthenticatedLearnRoute
@@ -137,6 +146,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/corre'
     | '/inner'
     | '/journal'
     | '/learn'
@@ -151,6 +161,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/corre'
     | '/inner'
     | '/journal'
     | '/learn'
@@ -166,6 +177,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/corre'
     | '/_authenticated/inner'
     | '/_authenticated/journal'
     | '/_authenticated/learn'
@@ -182,6 +194,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CorreRoute: typeof CorreRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/corre': {
+      id: '/corre'
+      path: '/corre'
+      fullPath: '/corre'
+      preLoaderRoute: typeof CorreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/inner': {
@@ -313,6 +333,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  CorreRoute: CorreRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

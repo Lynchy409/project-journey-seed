@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Sun, CalendarDays, CandlestickChart, Dumbbell, BookOpen, Sparkles } from "lucide-react";
+import { Sun, CalendarDays, CandlestickChart, Dumbbell, BookOpen, Sparkles, Gamepad2 } from "lucide-react";
 
 const TABS = [
   { to: "/today", label: "Today", icon: Sun },
@@ -8,6 +8,7 @@ const TABS = [
   { to: "/train", label: "Train", icon: Dumbbell },
   { to: "/learn", label: "Learn", icon: BookOpen },
   { to: "/inner", label: "Inner", icon: Sparkles },
+  { to: "/corre", label: "¡Corre!", icon: Gamepad2 },
 ] as const;
 
 export function BottomNav() {
