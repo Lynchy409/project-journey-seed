@@ -427,6 +427,42 @@ export type Database = {
           },
         ]
       }
+      little_wins: {
+        Row: {
+          created_at: string
+          cue: string | null
+          id: string
+          minutes: number
+          pillar: string
+          sort: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          cue?: string | null
+          id?: string
+          minutes?: number
+          pillar?: string
+          sort?: number
+          title: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          cue?: string | null
+          id?: string
+          minutes?: number
+          pillar?: string
+          sort?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       match_decks: {
         Row: {
           created_at: string
@@ -967,12 +1003,52 @@ export type Database = {
         }
         Relationships: []
       }
+      win_logs: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          pillar: string
+          title: string
+          user_id: string
+          win_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          pillar: string
+          title: string
+          user_id?: string
+          win_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          pillar?: string
+          title?: string
+          user_id?: string
+          win_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "win_logs_win_id_fkey"
+            columns: ["win_id"]
+            isOneToOne: false
+            referencedRelation: "little_wins"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workouts: {
         Row: {
           created_at: string
           date: string
           id: string
           kind: string
+          media_type: string | null
+          media_url: string | null
           name: string
           notes: string | null
           updated_at: string
@@ -983,6 +1059,8 @@ export type Database = {
           date?: string
           id?: string
           kind?: string
+          media_type?: string | null
+          media_url?: string | null
           name: string
           notes?: string | null
           updated_at?: string
@@ -993,6 +1071,8 @@ export type Database = {
           date?: string
           id?: string
           kind?: string
+          media_type?: string | null
+          media_url?: string | null
           name?: string
           notes?: string | null
           updated_at?: string

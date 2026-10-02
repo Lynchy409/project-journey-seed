@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Play, Plus, Search, Trash2 } from "lucide-react";
+import { Camera, Play, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, Stat, TextArea, TextInput } from "@/components/app/ui";
 import { RoutinePlayer } from "@/components/app/RoutinePlayer";
+import { LittleWins } from "@/components/app/LittleWins";
 import { prettyDate, todayISO } from "@/lib/dates";
-import { WORKOUT_KINDS, addWorkout, deleteWorkout, liftSummary, setsQuery, workoutsQuery, type LiftRow } from "@/lib/train";
+import { WORKOUT_KINDS, addWorkout, deleteWorkout, liftSummary, setsQuery, uploadWorkoutMedia, workoutsQuery, type LiftRow } from "@/lib/train";
 import { addRoutine, addStep, deleteRoutine, deleteStep, logRoutine, routineLogsQuery, routinesQuery, totalSeconds, updateStep, type Routine } from "@/lib/routines";
 import { checkinsQuery } from "@/lib/day";
 import { profileQuery } from "@/lib/profile";
@@ -42,7 +43,7 @@ function Train() {
         <Chip active={tab === "body"} onClick={() => setTab("body")} className="flex-1">Body</Chip>
       </div>
       {tab === "sessions" && <Sessions />}
-      {tab === "routines" && <Routines />}
+      {tab === "routines" && <><LittleWins only="fitness" /><Routines /></>}
       {tab === "lifts" && <Lifts />}
       {tab === "body" && <Body />}
     </AppShell>
@@ -296,6 +297,11 @@ function Sessions() {
                 ))}
               </ul>
             )}
+            {w.media_url && (w.media_type === "video" ? (
+              <video src={w.media_url} controls playsInline preload="metadata" className="mt-3 w-full rounded-2xl" />
+            ) : (
+              <a href={w.media_url} target="_blank" rel="noreferrer"><img src={w.media_url} alt={`${w.name} lift`} className="mt-3 w-full rounded-2xl object-cover" /></a>
+            ))}
             {w.notes && <p className="mt-3 text-sm font-medium text-muted-foreground">{w.notes}</p>}
           </Card>
         ))
@@ -313,14 +319,25 @@ function WorkoutSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
   const [kind, setKind] = useState<string>("gym");
   const [notes, setNotes] = useState("");
   const [sets, setSets] = useState([{ exercise: "", weight: "", reps: "" }]);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const pick = (f: File | null) => {
+    if (f && f.size > 50 * 1024 * 1024) { toast.error("Max 50MB — trim the clip first"); return; }
+    setFile(f);
+    setPreview(f ? URL.createObjectURL(f) : null);
+  };
 
   const save = useMutation({
     mutationFn: async () => {
+      const media = file ? await uploadWorkoutMedia(file) : null;
       await addWorkout({
         date,
         name: name.trim(),
         kind,
         notes: notes || null,
+        media_url: media?.url ?? null,
+        media_type: media?.type ?? null,
         sets: sets.map((s) => ({ exercise: s.exercise, weight: s.weight ? Number(s.weight) : null, reps: s.reps ? Number(s.reps) : null })),
       });
       if (notes.trim()) await addEntry({ text: `${name.trim()}: ${notes.trim()}`, pillar: "fitness", entry_type: "session_note", date });
@@ -331,7 +348,7 @@ function WorkoutSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
       qc.invalidateQueries({ queryKey: ["journal"] });
       toast.success("Session logged");
       onOpenChange(false);
-      setName(""); setNotes(""); setSets([{ exercise: "", weight: "", reps: "" }]);
+      setName(""); setNotes(""); setSets([{ exercise: "", weight: "", reps: "" }]); pick(null);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
   });
@@ -363,8 +380,24 @@ function WorkoutSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
       <button onClick={() => setSets((r) => [...r, { exercise: "", weight: "", reps: "" }])} className="h-12 w-full rounded-2xl border text-sm font-bold">
         Add another set
       </button>
+      <SectionTitle>Photo or video of the lift</SectionTitle>
+      {preview && file ? (
+        <div className="space-y-2">
+          {file.type.startsWith("video") ? (
+            <video src={preview} controls playsInline className="w-full rounded-2xl" />
+          ) : (
+            <img src={preview} alt="Lift preview" className="w-full rounded-2xl object-cover" />
+          )}
+          <button onClick={() => pick(null)} className="h-12 w-full rounded-2xl border text-sm font-bold">Remove</button>
+        </div>
+      ) : (
+        <label className="flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-sm font-bold">
+          <Camera className="h-5 w-5" /> Add photo or video
+          <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => pick(e.target.files?.[0] ?? null)} />
+        </label>
+      )}
       <Field label="Notes (saved to your journal)"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
-      <PrimaryButton onClick={() => save.mutate()} disabled={!name.trim() || save.isPending}>Save session</PrimaryButton>
+      <PrimaryButton onClick={() => save.mutate()} disabled={!name.trim() || save.isPending}>{save.isPending ? "Saving…" : "Save session"}</PrimaryButton>
     </FormSheet>
   );
 }
