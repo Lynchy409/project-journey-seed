@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { uid } from "./day";
 
 export type MatchPair = { id: string; left_text: string; right_text: string; sort: number };
-export type MatchDeck = { id: string; name: string; subject: string; description: string | null; match_pairs: MatchPair[] };
+export type MatchDeck = { id: string; name: string; subject: string; description: string | null; mode: string; match_pairs: MatchPair[] };
 
 const DEFAULT_DECKS: { name: string; subject: string; description: string; pairs: [string, string][] }[] = [
   {
@@ -36,7 +36,7 @@ const DEFAULT_DECKS: { name: string; subject: string; description: string; pairs
   },
 ];
 
-const SELECT = "id, name, subject, description, match_pairs(id, left_text, right_text, sort)";
+const SELECT = "id, name, subject, description, mode, match_pairs(id, left_text, right_text, sort)";
 
 export const decksQuery = queryOptions({
   queryKey: ["match_decks"],
@@ -72,11 +72,11 @@ async function seedDefaultDecks() {
   }
 }
 
-export async function addDeck(input: { name: string; subject: string; description: string | null; pairs: { left: string; right: string }[] }) {
+export async function addDeck(input: { name: string; subject: string; description: string | null; mode?: string; pairs: { left: string; right: string }[] }) {
   const user = await uid();
   const { data, error } = await supabase
     .from("match_decks")
-    .insert({ user_id: user, name: input.name, subject: input.subject, description: input.description })
+    .insert({ user_id: user, name: input.name, subject: input.subject, description: input.description, mode: input.mode ?? "match" })
     .select("id")
     .single();
   if (error) throw error;
@@ -108,7 +108,7 @@ export async function deletePair(id: string) {
   if (error) throw error;
 }
 
-export async function saveScore(input: { deck_id: string; seconds: number; accuracy: number; pairs: number }) {
+export async function saveScore(input: { deck_id: string; seconds: number; accuracy: number; pairs: number; mode?: string }) {
   const user = await uid();
   const { error } = await supabase.from("match_scores").insert({ ...input, user_id: user });
   if (error) throw error;
@@ -149,4 +149,14 @@ export function formatSeconds(s: number) {
   const m = Math.floor(s / 60);
   const r = (s % 60).toFixed(1);
   return m > 0 ? `${m}:${r.padStart(4, "0")}` : `${r}s`;
+}
+
+/** Best streak recorded for a quiz deck (streak stored in `pairs`). */
+export function bestStreak(scores: { deck_id: string | null; pairs: number; mode?: string }[], deckId: string) {
+  return scores.filter((s) => s.deck_id === deckId && s.mode === "quiz").reduce((m, s) => Math.max(m, s.pairs), 0);
+}
+
+/** Lenient typed-answer check: case, accents, punctuation and extra spaces ignored. */
+export function normalizeAnswer(s: string) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9ñ ]/g, " ").replace(/\s+/g, " ").trim();
 }
