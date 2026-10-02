@@ -126,6 +126,19 @@ function Games() {
         );
       })}
 
+      <Card>
+        <p className="text-lg font-extrabold leading-tight">¡Corre!</p>
+        <p className="mt-0.5 text-xs font-bold text-muted-foreground">Spanish running game · full-screen</p>
+        <div className="mt-3">
+          <Link
+            to="/corre"
+            className="flex h-14 items-center justify-center gap-2 rounded-3xl bg-primary text-base font-extrabold text-primary-foreground shadow-float active:scale-[0.98] transition-transform"
+          >
+            <Gamepad2 className="h-5 w-5" /> Play ¡Corre!
+          </Link>
+        </div>
+      </Card>
+
       {!!modeScores.length && (
         <Card>
           <SectionTitle>Recent rounds</SectionTitle>
