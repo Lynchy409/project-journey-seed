@@ -85,7 +85,7 @@ export function StreakQuiz({ deck, best, onClose, onFinish }: Props) {
         <div className={cn(
           "mt-8 rounded-3xl border-2 bg-card p-6 shadow-soft transition-colors",
           result?.ok && "border-trading",
-          result && !result.ok && "border-destructive animate-in shake",
+          result && !result.ok && "border-destructive",
         )}>
           <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Question</p>
           <p className="mt-2 text-2xl font-extrabold leading-snug">{q.left_text}</p>

@@ -6,9 +6,10 @@ import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, Stat, TextArea, TextInput } from "@/components/app/ui";
 import { MatchGame } from "@/components/app/MatchGame";
+import { StreakQuiz } from "@/components/app/StreakQuiz";
 import { prettyDate, todayISO } from "@/lib/dates";
 import { addCard, addStudySession, deleteCard, flashcardsQuery, minutesThisWeek, reviewCard, studySessionsQuery } from "@/lib/learn";
-import { addDeck, addPair, bestFor, decksQuery, deleteDeck, deletePair, formatSeconds, saveScore, scoresQuery, type MatchDeck } from "@/lib/games";
+import { addDeck, addPair, bestFor, bestStreak, decksQuery, deleteDeck, deletePair, formatSeconds, saveScore, scoresQuery, type MatchDeck } from "@/lib/games";
 import { addEntry } from "@/lib/journal";
 
 export const Route = createFileRoute("/_authenticated/learn")({
@@ -54,6 +55,10 @@ function Games() {
   const [playing, setPlaying] = useState<MatchDeck | null>(null);
   const [editing, setEditing] = useState<MatchDeck | null>(null);
   const [building, setBuilding] = useState(false);
+  const [mode, setMode] = useState<"match" | "quiz">("match");
+  const quiz = mode === "quiz";
+  const shown = (decks ?? []).filter((d) => (d.mode ?? "match") === mode);
+  const modeScores = (scores ?? []).filter((s) => (s.mode ?? "match") === mode);
 
   const save = useMutation({
     mutationFn: saveScore,
@@ -72,27 +77,34 @@ function Games() {
 
   return (
     <>
+      <div className="flex gap-2">
+        <Chip active={!quiz} onClick={() => setMode("match")} className="flex-1">Match</Chip>
+        <Chip active={quiz} onClick={() => setMode("quiz")} className="flex-1">Streak Quiz</Chip>
+      </div>
       <Card>
+        {quiz && <p className="mb-3 text-sm font-semibold text-muted-foreground">Type the answer. Every right answer adds 1 — one wrong and you're back to zero.</p>}
         <div className="grid grid-cols-2 gap-2">
-          <Stat label="Games played" value={scores?.length ?? 0} tone="text-learning" />
-          <Stat label="Your sets" value={decks?.length ?? 0} />
+          <Stat label="Games played" value={modeScores.length} tone="text-learning" />
+          <Stat label={quiz ? "Your quizzes" : "Your sets"} value={shown.length} />
         </div>
         <div className="mt-3">
           <PrimaryButton onClick={() => setBuilding(true)}>
-            <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> Create a game</span>
+            <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> {quiz ? "Create a quiz" : "Create a game"}</span>
           </PrimaryButton>
         </div>
       </Card>
 
-      {(decks ?? []).map((d) => {
+      {quiz && !shown.length && <Empty>No quizzes yet. Make one — Spanish, WW2, anything.</Empty>}
+      {shown.map((d) => {
         const best = bestFor(scores ?? [], d.id);
+        const streakBest = bestStreak(scores ?? [], d.id);
         return (
           <Card key={d.id}>
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-lg font-extrabold leading-tight">{d.name}</p>
                 <p className="mt-0.5 text-xs font-bold text-muted-foreground">
-                  {d.match_pairs.length} pairs{best ? ` · best ${formatSeconds(best.seconds)} at ${best.accuracy}%` : " · not played yet"}
+                  {quiz ? `${d.match_pairs.length} questions · best streak ${streakBest}` : <>{d.match_pairs.length} pairs{best ? ` · best ${formatSeconds(best.seconds)} at ${best.accuracy}%` : " · not played yet"}</>}
                 </p>
               </div>
               <button aria-label="Delete game" onClick={() => remove.mutate(d.id)} className="text-muted-foreground">
@@ -103,10 +115,10 @@ function Games() {
             <div className="mt-3 flex gap-3">
               <button
                 onClick={() => setPlaying(d)}
-                disabled={d.match_pairs.length < 2}
+                disabled={d.match_pairs.length < (quiz ? 1 : 2)}
                 className="flex h-14 flex-1 items-center justify-center gap-2 rounded-3xl bg-primary text-base font-extrabold text-primary-foreground shadow-float active:scale-[0.98] transition-transform disabled:opacity-40"
               >
-                <Gamepad2 className="h-5 w-5" /> Play match
+                <Gamepad2 className="h-5 w-5" /> {quiz ? "Play quiz" : "Play match"}
               </button>
               <button onClick={() => setEditing(d)} className="h-14 rounded-3xl border px-5 text-sm font-bold">Edit</button>
             </div>
@@ -114,21 +126,29 @@ function Games() {
         );
       })}
 
-      {!!scores?.length && (
+      {!!modeScores.length && (
         <Card>
           <SectionTitle>Recent rounds</SectionTitle>
           <ul className="mt-3 space-y-1.5">
-            {scores.slice(0, 10).map((s) => (
+            {modeScores.slice(0, 10).map((s) => (
               <li key={s.id} className="flex items-center justify-between rounded-xl bg-secondary px-3 py-2 text-sm font-bold">
                 <span>{prettyDate(s.date)}</span>
-                <span className="text-muted-foreground">{formatSeconds(Number(s.seconds))} · {s.accuracy}%</span>
+                <span className="text-muted-foreground">{s.mode === "quiz" ? `streak ${s.pairs} · ${s.accuracy}% right` : `${formatSeconds(Number(s.seconds))} · ${s.accuracy}%`}</span>
               </li>
             ))}
           </ul>
         </Card>
       )}
 
-      {playing && (
+      {playing && playing.mode === "quiz" && (
+        <StreakQuiz
+          deck={playing}
+          best={bestStreak(scores ?? [], playing.id)}
+          onClose={() => setPlaying(null)}
+          onFinish={(r) => save.mutate({ deck_id: playing.id, seconds: r.seconds, accuracy: Math.round((r.correct / r.answered) * 100), pairs: r.streak, mode: "quiz" })}
+        />
+      )}
+      {playing && playing.mode !== "quiz" && (
         <MatchGame
           deck={playing}
           best={bestFor(scores ?? [], playing.id)}
@@ -137,7 +157,7 @@ function Games() {
         />
       )}
       {editing && <DeckEditor deck={editing} onClose={() => setEditing(null)} />}
-      <DeckBuilder open={building} onOpenChange={setBuilding} />
+      <DeckBuilder open={building} onOpenChange={setBuilding} mode={mode} />
     </>
   );
 }
@@ -171,15 +191,16 @@ function DeckEditor({ deck, onClose }: { deck: MatchDeck; onClose: () => void })
       </div>
       <SectionTitle>Add a pair</SectionTitle>
       <div className="grid grid-cols-2 gap-2">
-        <TextInput value={left} onChange={(e) => setLeft(e.target.value)} placeholder="Card A" />
-        <TextInput value={right} onChange={(e) => setRight(e.target.value)} placeholder="Card B" />
+        <TextInput value={left} onChange={(e) => setLeft(e.target.value)} placeholder={deck.mode === "quiz" ? "Question" : "Card A"} />
+        <TextInput value={right} onChange={(e) => setRight(e.target.value)} placeholder={deck.mode === "quiz" ? "Answer" : "Card B"} />
       </div>
-      <PrimaryButton onClick={() => add.mutate()} disabled={!left.trim() || !right.trim() || add.isPending}>Add pair</PrimaryButton>
+      <PrimaryButton onClick={() => add.mutate()} disabled={!left.trim() || !right.trim() || add.isPending}>{deck.mode === "quiz" ? "Add question" : "Add pair"}</PrimaryButton>
     </FormSheet>
   );
 }
 
-function DeckBuilder({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+function DeckBuilder({ open, onOpenChange, mode }: { open: boolean; onOpenChange: (v: boolean) => void; mode: "match" | "quiz" }) {
+  const quiz = mode === "quiz";
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("spanish");
@@ -187,10 +208,10 @@ function DeckBuilder({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
   const [pairs, setPairs] = useState([{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }]);
 
   const save = useMutation({
-    mutationFn: () => addDeck({ name: name.trim(), subject: subject.trim() || "general", description: description.trim() || null, pairs }),
+    mutationFn: () => addDeck({ name: name.trim(), subject: subject.trim() || "general", description: description.trim() || null, mode, pairs }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["match_decks"] });
-      toast.success("Game created");
+      toast.success(quiz ? "Quiz created" : "Game created");
       onOpenChange(false);
       setName(""); setDescription(""); setPairs([{ left: "", right: "" }, { left: "", right: "" }, { left: "", right: "" }]);
     },
@@ -201,23 +222,23 @@ function DeckBuilder({ open, onOpenChange }: { open: boolean; onOpenChange: (v: 
     setPairs((rows) => rows.map((r, n) => (n === i ? { ...r, [k]: v } : r)));
 
   return (
-    <FormSheet open={open} onOpenChange={onOpenChange} title="Create a match game">
-      <Field label="Game name"><TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Verb endings" /></Field>
+    <FormSheet open={open} onOpenChange={onOpenChange} title={quiz ? "Create a streak quiz" : "Create a match game"}>
+      <Field label="Game name"><TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder={quiz ? "e.g. WW2" : "e.g. Verb endings"} /></Field>
       <Field label="Subject"><TextInput value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. spanish" /></Field>
       <Field label="What is it for?"><TextArea value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-      <SectionTitle>Pairs</SectionTitle>
+      <SectionTitle>{quiz ? "Questions & answers" : "Pairs"}</SectionTitle>
       <div className="space-y-2">
         {pairs.map((p, i) => (
           <div key={i} className="grid grid-cols-2 gap-2">
-            <TextInput value={p.left} onChange={(e) => setRow(i, "left", e.target.value)} placeholder="Card A" />
-            <TextInput value={p.right} onChange={(e) => setRow(i, "right", e.target.value)} placeholder="Card B" />
+            <TextInput value={p.left} onChange={(e) => setRow(i, "left", e.target.value)} placeholder={quiz ? "Question" : "Card A"} />
+            <TextInput value={p.right} onChange={(e) => setRow(i, "right", e.target.value)} placeholder={quiz ? "Answer" : "Card B"} />
           </div>
         ))}
       </div>
       <button onClick={() => setPairs((r) => [...r, { left: "", right: "" }])} className="h-12 w-full rounded-2xl border text-sm font-bold">
-        Add another pair
+        {quiz ? "Add another question" : "Add another pair"}
       </button>
-      <PrimaryButton onClick={() => save.mutate()} disabled={!name.trim() || save.isPending}>Save game</PrimaryButton>
+      <PrimaryButton onClick={() => save.mutate()} disabled={!name.trim() || save.isPending}>{quiz ? "Save quiz" : "Save game"}</PrimaryButton>
     </FormSheet>
   );
 }
