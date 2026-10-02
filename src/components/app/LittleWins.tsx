@@ -122,7 +122,7 @@ function WinTimer({ win, onClose, onDone, onShuffle }: { win: Win; onClose: () =
     if (paused || left <= 0) return;
     const t = setTimeout(() => {
       setLeft((s) => s - 1);
-      if (left - 1 === 0) beep(880, 0.4);
+      if (left - 1 === 0) beep("next");
     }, 1000);
     return () => clearTimeout(t);
   }, [paused, left]);

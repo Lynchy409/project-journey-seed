@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AppShell, Card, ProfileButton } from "@/components/app/AppShell";
 import { MomentumRing } from "@/components/app/MomentumRing";
 import { Bar, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, TextArea, TextInput, Chip } from "@/components/app/ui";
+import { LittleWins } from "@/components/app/LittleWins";
 import { profileQuery } from "@/lib/profile";
 import { PILLARS, type Pillar } from "@/lib/pillars";
 import { todayISO, prettyDate } from "@/lib/dates";
@@ -201,6 +202,9 @@ function Today() {
           </ul>
         )}
       </Card>
+
+      <LittleWins compact />
+
 
       <Card>
         <SectionTitle

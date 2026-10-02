@@ -30,17 +30,30 @@ export const setsQuery = queryOptions({
   },
 });
 
+export async function uploadWorkoutMedia(file: File): Promise<{ url: string; type: "photo" | "video" }> {
+  const user = await uid();
+  const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_") || "lift";
+  const path = `${user}/${Date.now()}-${safe}`;
+  const { error } = await supabase.storage.from("workout-media").upload(path, file, { contentType: file.type || "application/octet-stream" });
+  if (error) throw error;
+  const { data, error: e2 } = await supabase.storage.from("workout-media").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+  if (e2 || !data) throw e2 ?? new Error("Could not get media link");
+  return { url: data.signedUrl, type: file.type.startsWith("video") ? "video" : "photo" };
+}
+
 export async function addWorkout(input: {
   date: string;
   name: string;
   kind: string;
   notes: string | null;
+  media_url?: string | null;
+  media_type?: string | null;
   sets: { exercise: string; weight: number | null; reps: number | null }[];
 }) {
   const user = await uid();
   const { data, error } = await supabase
     .from("workouts")
-    .insert({ user_id: user, date: input.date, name: input.name, kind: input.kind, notes: input.notes })
+    .insert({ user_id: user, date: input.date, name: input.name, kind: input.kind, notes: input.notes, media_url: input.media_url ?? null, media_type: input.media_type ?? null })
     .select("id")
     .single();
   if (error) throw error;
