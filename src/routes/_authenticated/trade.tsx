@@ -669,7 +669,7 @@ function tzOffset(ms: number, tz: string): number {
   return Date.UTC(+p["year"]!, +p["month"]! - 1, +p["day"]!, +p["hour"]! % 24, +p["minute"]!) - ms;
 }
 
-/** Feed date/time are New York; returns a UTC instant (or null for all-day). */
+/** Feed date/time are UTC; returns a UTC instant (or null for all-day). */
 function newsInstant(date: string, time: string): Date | null {
   const [m = 1, d = 1, y = 1970] = date.split("-").map(Number);
   const t = time.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
@@ -677,7 +677,7 @@ function newsInstant(date: string, time: string): Date | null {
   let h = Number(t[1]) % 12;
   if (t[3]!.toLowerCase() === "pm") h += 12;
   const guess = Date.UTC(y, m - 1, d, h, Number(t[2]));
-  return new Date(guess - tzOffset(guess, "America/New_York"));
+  return new Date(guess);
 }
 
 const londonDay = (dt: Date) => dt.toLocaleDateString("en-CA");
