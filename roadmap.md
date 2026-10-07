@@ -8,3 +8,5 @@
 - [x] Train: + duplicate set, multiple photos/videos, case-insensitive lift suggestions
 - [x] Match game fits on one screen
 - [ ] AI form checker — discuss ideas (not built)
+
+- [ ] ¡Escapa!: wide-screen side-on chase mode inspired by Extreme Pamplona / Jetpack Joyride (after the 3D joystick version)
