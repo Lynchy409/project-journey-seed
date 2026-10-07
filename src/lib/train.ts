@@ -48,12 +48,13 @@ export async function addWorkout(input: {
   notes: string | null;
   media_url?: string | null;
   media_type?: string | null;
+  media?: { url: string; type: string }[];
   sets: { exercise: string; weight: number | null; reps: number | null }[];
 }) {
   const user = await uid();
   const { data, error } = await supabase
     .from("workouts")
-    .insert({ user_id: user, date: input.date, name: input.name, kind: input.kind, notes: input.notes, media_url: input.media_url ?? null, media_type: input.media_type ?? null })
+    .insert({ user_id: user, date: input.date, name: input.name, kind: input.kind, notes: input.notes, media_url: input.media_url ?? null, media_type: input.media_type ?? null, media: input.media ?? [] })
     .select("id")
     .single();
   if (error) throw error;

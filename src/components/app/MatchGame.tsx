@@ -128,9 +128,9 @@ export function MatchGame({
         </button>
       </div>
 
-      <p className="px-5 pt-4 text-sm font-bold text-muted-foreground">{deck.name} — tap the two cards that go together.</p>
+      <p className="px-5 pt-3 text-xs font-bold text-muted-foreground">{deck.name} — tap the two cards that go together.</p>
 
-      <div className="grid flex-1 grid-cols-2 content-start gap-3 overflow-y-auto p-5">
+      <div className="grid min-h-0 flex-1 grid-cols-4 auto-rows-fr gap-2 overflow-hidden p-3">
         {tiles.map((t) => {
           const isCleared = cleared.includes(t.pairId);
           const isSelected = selected?.key === t.key;
@@ -141,7 +141,7 @@ export function MatchGame({
               onClick={() => tap(t)}
               disabled={isCleared}
               className={[
-                "flex min-h-[5.5rem] items-center justify-center rounded-3xl border-2 px-3 py-4 text-center text-base font-extrabold leading-snug transition-all duration-200 active:scale-[0.97]",
+                "flex min-h-0 items-center justify-center break-words rounded-2xl border-2 p-1.5 text-center text-sm font-extrabold leading-tight transition-all duration-200 active:scale-[0.97]",
                 isCleared
                   ? "border-transparent bg-trading-soft text-trading opacity-40"
                   : isWrong

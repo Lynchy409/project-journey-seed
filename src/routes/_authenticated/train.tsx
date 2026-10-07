@@ -297,11 +297,18 @@ function Sessions() {
                 ))}
               </ul>
             )}
-            {w.media_url && (w.media_type === "video" ? (
-              <video src={w.media_url} controls playsInline preload="metadata" className="mt-3 w-full rounded-2xl" />
-            ) : (
-              <a href={w.media_url} target="_blank" rel="noreferrer"><img src={w.media_url} alt={`${w.name} lift`} className="mt-3 w-full rounded-2xl object-cover" /></a>
-            ))}
+            {(() => {
+              const list = Array.isArray(w.media) && w.media.length ? (w.media as { url: string; type: string }[]) : w.media_url ? [{ url: w.media_url, type: w.media_type ?? "photo" }] : [];
+              return list.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {list.map((m, i) => m.type === "video" ? (
+                    <video key={i} src={m.url} controls playsInline preload="metadata" className="w-full rounded-2xl" />
+                  ) : (
+                    <a key={i} href={m.url} target="_blank" rel="noreferrer"><img src={m.url} alt={`${w.name} lift ${i + 1}`} className="w-full rounded-2xl object-cover" /></a>
+                  ))}
+                </div>
+              );
+            })()}
             {w.notes && <p className="mt-3 text-sm font-medium text-muted-foreground">{w.notes}</p>}
           </Card>
         ))
@@ -314,30 +321,39 @@ function Sessions() {
 
 function WorkoutSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const qc = useQueryClient();
+  const { data: past } = useQuery(setsQuery);
   const [date, setDate] = useState(todayISO());
   const [name, setName] = useState("");
   const [kind, setKind] = useState<string>("gym");
   const [notes, setNotes] = useState("");
   const [sets, setSets] = useState([{ exercise: "", weight: "", reps: "" }]);
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [files, setFiles] = useState<{ file: File; url: string }[]>([]);
+  const [focus, setFocus] = useState<number | null>(null);
 
-  const pick = (f: File | null) => {
-    if (f && f.size > 50 * 1024 * 1024) { toast.error("Max 50MB — trim the clip first"); return; }
-    setFile(f);
-    setPreview(f ? URL.createObjectURL(f) : null);
+  const known = Array.from(
+    new Map(((past ?? []) as { exercise: string }[]).map((r) => [r.exercise.trim().toLowerCase(), r.exercise.trim()])).values(),
+  ).filter(Boolean);
+
+  const addFiles = (list: FileList | null) => {
+    const picked = Array.from(list ?? []).filter((f) => {
+      if (f.size > 50 * 1024 * 1024) { toast.error(`${f.name} is over 50MB — trim it first`); return false; }
+      return true;
+    });
+    setFiles((cur) => [...cur, ...picked.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
   };
 
   const save = useMutation({
     mutationFn: async () => {
-      const media = file ? await uploadWorkoutMedia(file) : null;
+      const media = [];
+      for (const f of files) media.push(await uploadWorkoutMedia(f.file));
       await addWorkout({
         date,
         name: name.trim(),
         kind,
         notes: notes || null,
-        media_url: media?.url ?? null,
-        media_type: media?.type ?? null,
+        media_url: media[0]?.url ?? null,
+        media_type: media[0]?.type ?? null,
+        media,
         sets: sets.map((s) => ({ exercise: s.exercise, weight: s.weight ? Number(s.weight) : null, reps: s.reps ? Number(s.reps) : null })),
       });
       if (notes.trim()) await addEntry({ text: `${name.trim()}: ${notes.trim()}`, pillar: "fitness", entry_type: "session_note", date });
@@ -348,13 +364,16 @@ function WorkoutSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
       qc.invalidateQueries({ queryKey: ["journal"] });
       toast.success("Session logged");
       onOpenChange(false);
-      setName(""); setNotes(""); setSets([{ exercise: "", weight: "", reps: "" }]); pick(null);
+      setName(""); setNotes(""); setSets([{ exercise: "", weight: "", reps: "" }]); setFiles([]);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
   });
 
   const setRow = (i: number, k: "exercise" | "weight" | "reps", v: string) =>
     setSets((rows) => rows.map((r, n) => (n === i ? { ...r, [k]: v } : r)));
+  const duplicate = (i: number) =>
+    setSets((rows) => [...rows.slice(0, i + 1), { ...rows[i]! }, ...rows.slice(i + 1)]);
+  const removeRow = (i: number) => setSets((rows) => rows.filter((_, n) => n !== i));
 
   return (
     <FormSheet open={open} onOpenChange={onOpenChange} title="Log a session">
@@ -369,33 +388,65 @@ function WorkoutSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v:
       <Field label="Session name"><TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lower body" /></Field>
       <SectionTitle>Sets</SectionTitle>
       <div className="space-y-2">
-        {sets.map((s, i) => (
-          <div key={i} className="grid grid-cols-[1fr_4.5rem_4.5rem] gap-2">
-            <TextInput value={s.exercise} onChange={(e) => setRow(i, "exercise", e.target.value)} placeholder="Exercise" />
-            <TextInput inputMode="decimal" value={s.weight} onChange={(e) => setRow(i, "weight", e.target.value)} placeholder="kg" />
-            <TextInput inputMode="numeric" value={s.reps} onChange={(e) => setRow(i, "reps", e.target.value)} placeholder="reps" />
-          </div>
-        ))}
+        {sets.map((s, i) => {
+          const q = s.exercise.trim().toLowerCase();
+          const hints = focus === i && q ? known.filter((k) => k.toLowerCase().includes(q) && k.toLowerCase() !== q).slice(0, 5) : [];
+          return (
+            <div key={i}>
+              <div className="grid grid-cols-[1fr_3.75rem_3.75rem_2.75rem] gap-1.5">
+                <TextInput
+                  value={s.exercise}
+                  onChange={(e) => setRow(i, "exercise", e.target.value)}
+                  onFocus={() => setFocus(i)}
+                  onBlur={() => setTimeout(() => setFocus((f) => (f === i ? null : f)), 150)}
+                  placeholder="Exercise"
+                />
+                <TextInput inputMode="decimal" value={s.weight} onChange={(e) => setRow(i, "weight", e.target.value)} placeholder="kg" />
+                <TextInput inputMode="numeric" value={s.reps} onChange={(e) => setRow(i, "reps", e.target.value)} placeholder="reps" />
+                <button aria-label="Copy this set below" onClick={() => duplicate(i)} className="flex h-12 items-center justify-center rounded-2xl bg-fitness text-primary-foreground active:scale-95 transition-transform">
+                  <Plus className="h-5 w-5" />
+                </button>
+              </div>
+              {hints.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {hints.map((h) => (
+                    <button key={h} onMouseDown={(e) => e.preventDefault()} onClick={() => { setRow(i, "exercise", h); setFocus(null); }} className="h-9 rounded-full bg-fitness-soft px-3 text-xs font-bold text-fitness">
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {sets.length > 1 && (
+                <button onClick={() => removeRow(i)} className="mt-1 text-xs font-bold text-muted-foreground">Remove set</button>
+              )}
+            </div>
+          );
+        })}
       </div>
       <button onClick={() => setSets((r) => [...r, { exercise: "", weight: "", reps: "" }])} className="h-12 w-full rounded-2xl border text-sm font-bold">
-        Add another set
+        Add a new exercise
       </button>
-      <SectionTitle>Photo or video of the lift</SectionTitle>
-      {preview && file ? (
-        <div className="space-y-2">
-          {file.type.startsWith("video") ? (
-            <video src={preview} controls playsInline className="w-full rounded-2xl" />
-          ) : (
-            <img src={preview} alt="Lift preview" className="w-full rounded-2xl object-cover" />
-          )}
-          <button onClick={() => pick(null)} className="h-12 w-full rounded-2xl border text-sm font-bold">Remove</button>
+      <SectionTitle>Photos & videos of the lifts</SectionTitle>
+      {files.length > 0 && (
+        <div className="grid grid-cols-2 gap-2">
+          {files.map((f, i) => (
+            <div key={f.url} className="relative">
+              {f.file.type.startsWith("video") ? (
+                <video src={f.url} playsInline muted className="aspect-square w-full rounded-2xl object-cover" />
+              ) : (
+                <img src={f.url} alt={`Lift ${i + 1}`} className="aspect-square w-full rounded-2xl object-cover" />
+              )}
+              <button aria-label="Remove" onClick={() => setFiles((cur) => cur.filter((_, n) => n !== i))} className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-full bg-background/90">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
         </div>
-      ) : (
-        <label className="flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-sm font-bold">
-          <Camera className="h-5 w-5" /> Add photo or video
-          <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => pick(e.target.files?.[0] ?? null)} />
-        </label>
       )}
+      <label className="flex h-14 cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-sm font-bold">
+        <Camera className="h-5 w-5" /> {files.length ? "Add more" : "Add photos or videos"}
+        <input type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+      </label>
       <Field label="Notes (saved to your journal)"><TextArea value={notes} onChange={(e) => setNotes(e.target.value)} /></Field>
       <PrimaryButton onClick={() => save.mutate()} disabled={!name.trim() || save.isPending}>{save.isPending ? "Saving…" : "Save session"}</PrimaryButton>
     </FormSheet>

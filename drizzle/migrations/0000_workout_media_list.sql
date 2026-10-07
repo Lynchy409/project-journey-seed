@@ -1,0 +1,2 @@
+ALTER TABLE public.workouts ADD COLUMN media jsonb NOT NULL DEFAULT '[]'::jsonb;
+UPDATE public.workouts SET media = jsonb_build_array(jsonb_build_object('url', media_url, 'type', coalesce(media_type,'photo'))) WHERE media_url IS NOT NULL;

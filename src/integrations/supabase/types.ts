@@ -1053,6 +1053,7 @@ export type Database = {
           date: string
           id: string
           kind: string
+          media: Json
           media_type: string | null
           media_url: string | null
           name: string
@@ -1065,6 +1066,7 @@ export type Database = {
           date?: string
           id?: string
           kind?: string
+          media?: Json
           media_type?: string | null
           media_url?: string | null
           name: string
@@ -1077,6 +1079,7 @@ export type Database = {
           date?: string
           id?: string
           kind?: string
+          media?: Json
           media_type?: string | null
           media_url?: string | null
           name?: string

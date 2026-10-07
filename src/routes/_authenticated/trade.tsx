@@ -680,8 +680,8 @@ function newsInstant(date: string, time: string): Date | null {
   return new Date(guess - tzOffset(guess, "America/New_York"));
 }
 
-const londonDay = (dt: Date) => dt.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
-const londonTime = (dt: Date) => dt.toLocaleTimeString("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit" });
+const londonDay = (dt: Date) => dt.toLocaleDateString("en-CA");
+const londonTime = (dt: Date) => dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 function newsDayLabel(key: string, isToday: boolean): string {
   const [y = 1970, m = 1, d = 1] = key.split("-").map(Number);
@@ -725,7 +725,7 @@ function NewsTab() {
       <Card className="flex items-center gap-3 !py-3">
         <Newspaper className="h-5 w-5 shrink-0 text-trading" />
         <p className="flex-1 text-xs text-muted-foreground">
-          Red & orange events for EUR · USD · GBP · JPY. Times are London (UK).
+          Red & orange events for EUR · USD · GBP · JPY.
         </p>
         <button
           className="text-xs font-semibold text-trading"
