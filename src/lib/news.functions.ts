@@ -4,7 +4,7 @@ export type NewsEvent = {
   title: string;
   currency: string;
   date: string; // MM-DD-YYYY from feed
-  time: string; // New York time, as published
+  time: string; // UTC, as published in the XML feed
   impact: "High" | "Medium";
   forecast: string;
   previous: string;
