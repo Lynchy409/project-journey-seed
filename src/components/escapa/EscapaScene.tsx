@@ -1,5 +1,5 @@
 import { Canvas, useFrame } from "@react-three/fiber";
-import { Environment, Html, Lightformer } from "@react-three/drei";
+import { Environment, Lightformer } from "@react-three/drei";
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { DOOR_X, HALF_W, ROOM_LEN, START_Z, blocked, makeRoom, type Room3D } from "@/lib/escapa3d";
@@ -156,20 +156,20 @@ function World({ lvl, qi, options, locked, active, input, onDoor, onHit, onBone 
     camera.lookAt(_look);
   });
 
-  const wallLen = ROOM_LEN + 6;
+  const wallLen = ROOM_LEN + 30;
   return (
     <>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0, -ROOM_LEN / 2 + 1]} receiveShadow>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, -ROOM_LEN / 2 + 13]} receiveShadow>
         <planeGeometry args={[HALF_W * 2, wallLen]} />
         <meshStandardMaterial map={floor} roughness={0.9} />
       </mesh>
       {[-1, 1].map((side) => (
         <group key={side}>
-          <mesh position={[side * (HALF_W + 0.3), 1.4, -ROOM_LEN / 2 + 1]} receiveShadow castShadow>
+          <mesh position={[side * (HALF_W + 0.3), 1.4, -ROOM_LEN / 2 + 13]} receiveShadow castShadow>
             <boxGeometry args={[0.6, 2.8, wallLen]} />
             <meshStandardMaterial color="#e9dcc6" roughness={0.85} />
           </mesh>
-          <mesh position={[side * (HALF_W - 0.02), 0.2, -ROOM_LEN / 2 + 1]}>
+          <mesh position={[side * (HALF_W - 0.02), 0.2, -ROOM_LEN / 2 + 13]}>
             <boxGeometry args={[0.08, 0.4, wallLen]} />
             <meshStandardMaterial color="#6b8f71" />
           </mesh>
@@ -191,11 +191,6 @@ function World({ lvl, qi, options, locked, active, input, onDoor, onHit, onBone 
               <mesh key={b} position={[b, 1.35, 0]}><cylinderGeometry args={[0.07, 0.07, 2.7, 8]} /><meshStandardMaterial color="#3a3a3a" metalness={0.8} roughness={0.3} /></mesh>
             ))}
             {!isLocked && <mesh position={[0, 1.35, -0.2]}><planeGeometry args={[2.5, 2.7]} /><meshBasicMaterial color="#fff2c4" /></mesh>}
-            <Html position={[0, 3.7, 0.4]} center zIndexRange={[10, 0]}>
-              <div className={`whitespace-nowrap rounded-xl px-2.5 py-1.5 text-center text-sm font-extrabold shadow-lg ${isLocked ? "bg-destructive/80 text-destructive-foreground line-through" : "bg-card text-foreground"}`}>
-                {options[i]}
-              </div>
-            </Html>
           </group>
         );
       })}

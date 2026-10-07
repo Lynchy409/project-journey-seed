@@ -144,6 +144,13 @@ function EscapaPage() {
             <p className="text-[10px] font-extrabold uppercase tracking-widest text-primary">Level {s.lvl + 1} · {level.name}</p>
             <p className="text-xl font-black leading-tight">{q.q}</p>
           </div>
+          <div className="mx-auto mt-2 grid max-w-md grid-cols-3 gap-2">
+            {s.options.map((o, i) => (
+              <div key={i} className={`rounded-xl px-1 py-2 text-center text-sm font-extrabold leading-tight shadow-soft ${s.locked.includes(i) ? "bg-destructive/80 text-destructive-foreground line-through" : "bg-fitness text-primary-foreground"}`}>
+                <span className="block text-[9px] uppercase tracking-widest opacity-80">{["Left", "Middle", "Right"][i]} door</span>{o}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
