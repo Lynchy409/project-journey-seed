@@ -5,6 +5,7 @@ export type EscapaRoom = { map: string[]; guardRows: number[] };
 export type EscapaLevel = {
   name: string;
   lessons: string;
+  mode: "corridor" | "chase";
   seconds: number;
   guardMs: number; // starting guard step speed (lower = faster)
   rooms: EscapaRoom[];
@@ -56,8 +57,8 @@ const LEVEL_2: EscapaQuestion[] = [
 ];
 
 export const LEVELS: EscapaLevel[] = [
-  { name: "The Cell Block", lessons: "Lessons 1–3", seconds: 120, guardMs: 480, rooms: CELL_ROOMS, questions: LEVEL_1 },
-  { name: "The Guard Corridor", lessons: "Lesson 4", seconds: 120, guardMs: 400, rooms: CORRIDOR_ROOMS, questions: LEVEL_2 },
+  { name: "The Cell Block", lessons: "Lessons 1–3", mode: "corridor", seconds: 105, guardMs: 480, rooms: CELL_ROOMS, questions: LEVEL_1 },
+  { name: "The Yard Chase", lessons: "Lesson 4", mode: "chase", seconds: 90, guardMs: 400, rooms: CORRIDOR_ROOMS, questions: LEVEL_2 },
 ];
 
 export type EscapaProgress = { unlocked: number; best: Record<number, { time: number; lives: number }> };

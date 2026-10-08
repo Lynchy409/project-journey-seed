@@ -1,7 +1,8 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Bone, Heart, Lock, Timer, Trophy } from "lucide-react";
+import { Bone, Heart, Lock, MoveHorizontal, Timer, Trophy } from "lucide-react";
 import { Ted } from "@/components/app/Ted";
+import { EscapaChase, type ChaseInput } from "@/components/escapa/EscapaChase";
 import { EscapaScene, type Stick } from "@/components/escapa/EscapaScene";
 import { LEVELS, START_LIVES, loadProgress, saveProgress, type EscapaProgress } from "@/lib/escapa";
 import { beep } from "@/lib/morning";
@@ -31,7 +32,9 @@ function EscapaPage() {
   const [s, setS] = useState<S>({ phase: "select", lvl: 0, qi: 0, options: [], lives: START_LIVES, time: 0, locked: [], flash: null, hits: 0, misses: 0 });
   const [progress, setProgress] = useState<EscapaProgress>({ unlocked: 0, best: {} });
   const input = useRef<Stick>({ x: 0, y: 0 });
+  const chaseInput = useRef<ChaseInput>({ lane: 0, jump: 0 });
   const [knob, setKnob] = useState<{ ox: number; oy: number; x: number; y: number } | null>(null);
+  const swipe = useRef<{ x: number; y: number } | null>(null);
   const level = LEVELS[s.lvl]!;
 
   useEffect(() => {
@@ -106,26 +109,44 @@ function EscapaPage() {
 
   return (
     <div className="fixed inset-0 select-none overflow-hidden bg-background">
-      {s.phase !== "select" && (
-        <div className="absolute inset-0">
-          <EscapaScene lvl={s.lvl} qi={s.qi} options={s.options} locked={s.locked} active={s.phase === "play"} input={input} onDoor={onDoor} onHit={onHit} onBone={onBone} />
+      {s.phase !== "select" && (level.mode === "chase" ? (
+        <EscapaChase lvl={s.lvl} qi={s.qi} locked={s.locked} active={s.phase === "play"} input={chaseInput} onDoor={onDoor} onHit={onHit} onBone={onBone} />
+      ) : (
+        <EscapaScene lvl={s.lvl} qi={s.qi} options={s.options} locked={s.locked} active={s.phase === "play"} input={input} onDoor={onDoor} onHit={onHit} onBone={onBone} />
+      ))}
+
+      {s.phase === "play" && level.mode === "corridor" && (
+        <div
+          className="absolute inset-0 z-10 touch-none"
+          onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setKnob({ ox: e.clientX, oy: e.clientY, x: 0, y: 0 }); }}
+          onPointerMove={stickMove}
+          onPointerUp={stickEnd}
+          onPointerCancel={stickEnd}
+        >
+          {knob && (
+            <div className="pointer-events-none absolute h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card/80 bg-foreground/15" style={{ left: knob.ox, top: knob.oy }}>
+              <div className="absolute left-1/2 top-1/2 h-12 w-12 rounded-full bg-card shadow-float" style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
+            </div>
+          )}
         </div>
       )}
 
-      {/* Joystick: press anywhere and drag */}
-      <div
-        className="absolute inset-0 z-10 touch-none"
-        onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); setKnob({ ox: e.clientX, oy: e.clientY, x: 0, y: 0 }); }}
-        onPointerMove={stickMove}
-        onPointerUp={stickEnd}
-        onPointerCancel={stickEnd}
-      >
-        {knob && (
-          <div className="pointer-events-none absolute h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-card/80 bg-foreground/15" style={{ left: knob.ox, top: knob.oy }}>
-            <div className="absolute left-1/2 top-1/2 h-12 w-12 rounded-full bg-card shadow-float" style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }} />
-          </div>
-        )}
-      </div>
+      {s.phase === "play" && level.mode === "chase" && (
+        <div
+          className="absolute inset-0 z-10 touch-none"
+          onPointerDown={(e) => { (e.target as HTMLElement).setPointerCapture(e.pointerId); swipe.current = { x: e.clientX, y: e.clientY }; }}
+          onPointerUp={(e) => {
+            const origin = swipe.current;
+            swipe.current = null;
+            if (!origin) return;
+            const dx = e.clientX - origin.x, dy = e.clientY - origin.y;
+            if (Math.abs(dy) > Math.abs(dx) && dy < -28) chaseInput.current.jump += 1;
+            else if (Math.abs(dx) > 25) chaseInput.current.lane = dx > 0 ? -1 : 1;
+            else chaseInput.current.jump += 1;
+          }}
+          onPointerCancel={() => { swipe.current = null; }}
+        />
+      )}
 
       {s.phase === "play" && (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-20 px-3 pt-[max(env(safe-area-inset-top),10px)]">
@@ -141,7 +162,7 @@ function EscapaPage() {
             </div>
           </div>
           <div className="mx-auto mt-2 max-w-md rounded-2xl bg-card/95 p-3 text-center shadow-soft">
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-primary">Level {s.lvl + 1} · {level.name}</p>
+             <p className="text-[10px] font-extrabold uppercase tracking-widest text-primary">Level {s.lvl + 1} · {level.name} · {level.mode === "chase" ? "Chase" : "Escape"}</p>
             <p className="text-xl font-black leading-tight">{q.q}</p>
           </div>
           <div className="mx-auto mt-2 grid max-w-md grid-cols-3 gap-2">
@@ -160,8 +181,10 @@ function EscapaPage() {
         </div>
       )}
 
-      {s.phase === "play" && !knob && (
-        <p className="pointer-events-none absolute inset-x-0 bottom-[max(env(safe-area-inset-bottom),16px)] z-20 text-center text-xs font-bold text-foreground/70">Press anywhere and drag to run</p>
+       {s.phase === "play" && !knob && (
+         <p className="pointer-events-none absolute inset-x-0 bottom-[max(env(safe-area-inset-bottom),16px)] z-20 text-center text-xs font-bold text-foreground/70">
+           {level.mode === "chase" ? "Swipe sideways to change lane · swipe up or tap to jump" : "Press anywhere and drag to run"}
+         </p>
       )}
 
       <button type="button" onClick={goBack} className="fixed bottom-3 left-3 z-30 rounded-full bg-foreground/40 px-3 py-1.5 text-xs font-semibold text-background backdrop-blur" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
@@ -184,14 +207,14 @@ function EscapaPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block font-extrabold">{L.name}</span>
-                    <span className="block text-xs font-bold text-muted-foreground">{L.lessons} · {L.questions.length} rooms{!open ? ` · Beat level ${i} to unlock` : ""}</span>
+                     <span className="block text-xs font-bold text-muted-foreground">{L.lessons} · {L.questions.length} stages · {L.mode === "chase" ? "fast chase" : "3D escape"}{!open ? ` · Beat level ${i} to unlock` : ""}</span>
                   </span>
                   {b && <span className="flex flex-col items-end text-xs font-extrabold text-primary"><Trophy className="h-4 w-4" />{b.time}s · {b.lives}♥</span>}
                 </button>
               );
             })}
           </div>
-          <p className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><Bone className="h-4 w-4" /> Drag anywhere to run · arrows on a keyboard</p>
+           <p className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><MoveHorizontal className="h-4 w-4" /> Gameplay changes as Ted escapes</p>
           <button type="button" onClick={goBack} className="text-sm font-bold text-muted-foreground">Back to games</button>
         </div>
       )}

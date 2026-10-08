@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- ¡Escapa! levels declare either corridor or chase gameplay in level data, so course progression can vary pace without splitting the game.
