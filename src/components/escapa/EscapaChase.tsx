@@ -199,7 +199,7 @@ function ChaseTed({ legs }: { legs: React.RefObject<(THREE.Mesh | null)[]> }) {
       <mesh position={[0, 1.08, -1.21]}><sphereGeometry args={[0.065, 9, 7]} /><meshStandardMaterial color="#2b1a0e" /></mesh>
       {[-0.14, 0.14].map((x) => <mesh key={x} position={[x, 1.2, -1.03]}><sphereGeometry args={[0.052, 9, 7]} /><meshStandardMaterial color="#2b1a0e" /></mesh>)}
       <mesh position={[0, 0.9, 0.73]}><sphereGeometry args={[0.17, 11, 8]} /><meshStandardMaterial color="#c98a4b" /></mesh>
-      {[[-0.27, -0.38], [0.27, -0.38], [-0.27, 0.38], [0.27, 0.38]].map(([x, z], i) => (
+      {([[-0.27, -0.38], [0.27, -0.38], [-0.27, 0.38], [0.27, 0.38]] as Array<[number, number]>).map(([x, z], i) => (
         <mesh key={i} ref={(m) => { legs.current[i] = m; }} position={[x, 0.31, z]} castShadow>
           <cylinderGeometry args={[0.105, 0.115, 0.46, 9]} /><meshStandardMaterial color="#a86a30" />
         </mesh>
