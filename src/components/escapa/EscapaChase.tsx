@@ -18,15 +18,15 @@ type Props = {
 
 const LANES = [-2.4, 0, 2.4];
 const RUNNER_X = -4.2;
-const WORLD_SPEED = 10.5;
-const GRAVITY = -28;
-const JUMP_SPEED = 11;
+const WORLD_SPEED = 12;
+const GRAVITY = -30;
+const JUMP_SPEED = 11.5;
 
 export function EscapaChase(props: Props) {
   return (
-    <Canvas shadows dpr={[1, 1.6]} camera={{ position: [0, 6.2, 13], fov: 52 }}>
+    <Canvas shadows dpr={[1, 1.6]} camera={{ position: [-5.2, 2.6, 7.6], fov: 55 }}>
       <color attach="background" args={["#b9e3ef"]} />
-      <fog attach="fog" args={["#b9e3ef", 22, 52]} />
+      <fog attach="fog" args={["#b9e3ef", 26, 60]} />
       <hemisphereLight args={["#fff8df", "#708269", 1.15]} />
       <directionalLight position={[-4, 12, 8]} intensity={1.8} castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
       <Environment resolution={64}>
@@ -50,9 +50,10 @@ function ChaseWorld({ lvl, qi, locked, active, input, onDoor, onHit, onBone }: P
   const latest = useRef({ active, onDoor, onHit, onBone });
   latest.current = { active, onDoor, onHit, onBone };
 
+  // Long runway before the first obstacle so the player always has time to react.
   const obstacleSpecs = useMemo(() => [
-    { x: 2.5, lane: (qi + lvl) % 3 },
-    { x: 8.2, lane: (qi + lvl + 2) % 3 },
+    { x: 9, lane: (qi + lvl) % 3 },
+    { x: 17.5, lane: (qi + lvl + 2) % 3 },
   ], [lvl, qi]);
 
   useEffect(() => {
@@ -110,7 +111,7 @@ function ChaseWorld({ lvl, qi, locked, active, input, onDoor, onHit, onBone }: P
       if (ref) ref.rotation.y = Math.sin(s.t * 2 + i) * 0.035;
     });
 
-    const boneX = 5.5 + s.worldX;
+    const boneX = 13 + s.worldX;
     if (boneRef.current) {
       boneRef.current.rotation.y += dt * 4;
       boneRef.current.position.y = 1.05 + Math.sin(s.t * 5) * 0.14;
@@ -121,35 +122,58 @@ function ChaseWorld({ lvl, qi, locked, active, input, onDoor, onHit, onBone }: P
       L.onBone();
     }
 
-    const gateX = 14 + s.worldX;
+    const gateX = 24 + s.worldX;
     if (!s.gate && L.active && gateX <= RUNNER_X + 0.25) {
       s.gate = true;
       L.onDoor(s.lane);
     }
     if (gate.current) gate.current.position.x = gateX;
 
-    camera.position.x = THREE.MathUtils.lerp(camera.position.x, -0.2, 1 - Math.exp(-4 * dt));
-    camera.lookAt(-0.4, 1.2, 0);
+    // Low, close chase camera — Ted fills the frame, world rushes past.
+    camera.position.x = THREE.MathUtils.lerp(camera.position.x, RUNNER_X - 1.1, 1 - Math.exp(-4 * dt));
+    camera.position.y = THREE.MathUtils.lerp(camera.position.y, 2.7 + s.y * 0.35, 1 - Math.exp(-4 * dt));
+    camera.position.z = THREE.MathUtils.lerp(camera.position.z, 7.4, 1 - Math.exp(-4 * dt));
+    camera.lookAt(RUNNER_X + 2.4, 1.1, 0);
     const perspective = camera as THREE.PerspectiveCamera;
-    perspective.fov += ((L.active ? 58 : 52) - perspective.fov) * (1 - Math.exp(-3 * dt));
+    perspective.fov += ((L.active ? 60 : 55) - perspective.fov) * (1 - Math.exp(-3 * dt));
     perspective.updateProjectionMatrix();
   });
 
   return (
     <>
       <mesh rotation-x={-Math.PI / 2} receiveShadow>
-        <planeGeometry args={[80, 18]} />
+        <planeGeometry args={[120, 18]} />
         <meshStandardMaterial color="#82996d" roughness={0.95} />
       </mesh>
       {LANES.map((z) => (
         <mesh key={z} position={[0, 0.025, z]} rotation-x={-Math.PI / 2}>
-          <planeGeometry args={[70, 1.85]} />
+          <planeGeometry args={[110, 1.85]} />
           <meshStandardMaterial color="#c6b08d" roughness={0.95} />
         </mesh>
       ))}
       <group ref={moving}>
-        {[-2, 7, 16, 25].map((x, i) => (
-          <group key={x} position={[x, 0, -6.8]}>
+        {/* scrolling dashes between lanes for speed feel */}
+        {Array.from({ length: 16 }, (_, i) => (
+          <mesh key={`d${i}`} position={[i * 3.4 - 8, 0.04, -1.2]} rotation-x={-Math.PI / 2}>
+            <planeGeometry args={[1.4, 0.16]} />
+            <meshStandardMaterial color="#a8946f" roughness={0.95} />
+          </mesh>
+        ))}
+        {Array.from({ length: 16 }, (_, i) => (
+          <mesh key={`e${i}`} position={[i * 3.4 - 6.3, 0.04, 1.2]} rotation-x={-Math.PI / 2}>
+            <planeGeometry args={[1.4, 0.16]} />
+            <meshStandardMaterial color="#a8946f" roughness={0.95} />
+          </mesh>
+        ))}
+        {/* prison-yard fence posts whipping past */}
+        {Array.from({ length: 10 }, (_, i) => (
+          <group key={`f${i}`} position={[i * 5 - 6, 0, -5.6]}>
+            <mesh position={[0, 1.5, 0]} castShadow><cylinderGeometry args={[0.09, 0.09, 3, 6]} /><meshStandardMaterial color="#5b5f66" metalness={0.5} /></mesh>
+            <mesh position={[0, 2.9, 0]}><boxGeometry args={[0.16, 0.16, 0.16]} /><meshStandardMaterial color="#45484e" metalness={0.6} /></mesh>
+          </group>
+        ))}
+        {[-2, 7, 16, 25, 34].map((x, i) => (
+          <group key={x} position={[x, 0, -8.2]}>
             <mesh position={[0, 1.2, 0]} castShadow><cylinderGeometry args={[0.28, 0.38, 2.4, 8]} /><meshStandardMaterial color="#795235" /></mesh>
             <mesh position={[0, 3.1, 0]} scale={[1.6, 1.15, 1.1]} castShadow><sphereGeometry args={[1.4, 9, 7]} /><meshStandardMaterial color={i % 2 ? "#5f8654" : "#6f945e"} flatShading /></mesh>
           </group>
@@ -160,21 +184,21 @@ function ChaseWorld({ lvl, qi, locked, active, input, onDoor, onHit, onBone }: P
             <mesh position={[0, 0.65, 0.7]}><boxGeometry args={[1.32, 0.12, 0.08]} /><meshStandardMaterial color="#6d4529" /></mesh>
           </group>
         ))}
-        <group ref={boneRef} position={[5.5, 1.05, LANES[1]]}>
+        <group ref={boneRef} position={[13, 1.05, LANES[1]]}>
           <mesh rotation-z={Math.PI / 2}><cylinderGeometry args={[0.09, 0.09, 0.72, 8]} /><meshStandardMaterial color="#fff8dd" /></mesh>
           {[-0.36, 0.36].flatMap((x) => [-0.1, 0.1].map((y) => <mesh key={`${x}-${y}`} position={[x, y, 0]}><sphereGeometry args={[0.13, 9, 7]} /><meshStandardMaterial color="#fff8dd" /></mesh>))}
         </group>
       </group>
 
-      <group ref={gate} position={[14, 0, 0]}>
+      <group ref={gate} position={[24, 0, 0]}>
         {LANES.map((z, i) => {
           const barred = locked.includes(i);
           return (
             <group key={z} position={[0, 0, z]}>
-              <mesh position={[0, 1.45, -0.9]} castShadow><boxGeometry args={[0.65, 2.9, 0.35]} /><meshStandardMaterial color={barred ? "#aa3d35" : "#e97b31"} /></mesh>
-              <mesh position={[0, 1.45, 0.9]} castShadow><boxGeometry args={[0.65, 2.9, 0.35]} /><meshStandardMaterial color={barred ? "#aa3d35" : "#e97b31"} /></mesh>
-              <mesh position={[0, 3, 0]} castShadow><boxGeometry args={[0.65, 0.35, 2.15]} /><meshStandardMaterial color={barred ? "#aa3d35" : "#e97b31"} /></mesh>
-              {barred && [-0.55, 0, 0.55].map((bz) => <mesh key={bz} position={[-0.35, 1.45, bz]}><cylinderGeometry args={[0.06, 0.06, 2.6, 8]} /><meshStandardMaterial color="#34302f" metalness={0.7} /></mesh>)}
+              <mesh position={[0, 1.45, -0.95]} castShadow><boxGeometry args={[0.5, 2.9, 0.3]} /><meshStandardMaterial color={barred ? "#aa3d35" : "#e97b31"} /></mesh>
+              <mesh position={[0, 1.45, 0.95]} castShadow><boxGeometry args={[0.5, 2.9, 0.3]} /><meshStandardMaterial color={barred ? "#aa3d35" : "#e97b31"} /></mesh>
+              <mesh position={[0, 3, 0]} castShadow><boxGeometry args={[0.5, 0.3, 2.2]} /><meshStandardMaterial color={barred ? "#aa3d35" : "#e97b31"} /></mesh>
+              {barred && [-0.55, 0, 0.55].map((bz) => <mesh key={bz} position={[-0.3, 1.45, bz]}><cylinderGeometry args={[0.06, 0.06, 2.6, 8]} /><meshStandardMaterial color="#34302f" metalness={0.7} /></mesh>)}
             </group>
           );
         })}
@@ -191,7 +215,7 @@ function ChaseWorld({ lvl, qi, locked, active, input, onDoor, onHit, onBone }: P
 
 function ChaseTed({ legs }: { legs: React.RefObject<(THREE.Mesh | null)[]> }) {
   return (
-    <group scale={0.95}>
+    <group scale={1.25}>
       <mesh position={[0, 0.68, 0]} scale={[0.56, 0.5, 0.76]} castShadow><sphereGeometry args={[1, 18, 14]} /><meshStandardMaterial color="#c98a4b" roughness={0.95} /></mesh>
       <mesh position={[0, 1.12, -0.67]} castShadow><sphereGeometry args={[0.39, 18, 14]} /><meshStandardMaterial color="#d49a5c" roughness={0.95} /></mesh>
       {[-1, 1].map((side) => <mesh key={side} position={[side * 0.35, 1.02, -0.58]} rotation-z={side * 0.25} scale={[0.14, 0.34, 0.22]}><sphereGeometry args={[1, 11, 8]} /><meshStandardMaterial color="#a86a30" /></mesh>)}
