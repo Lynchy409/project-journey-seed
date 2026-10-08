@@ -155,7 +155,7 @@ function ChaseWorld({ lvl, qi, locked, active, input, onDoor, onHit, onBone }: P
           </group>
         ))}
         {obstacleSpecs.map((o, i) => (
-          <group key={i} ref={(r) => { obstacleRefs.current[i] = r; }} position={[o.x, 0, LANES[o.lane]]}>
+          <group key={i} ref={(r) => { obstacleRefs.current[i] = r; }} position={[o.x, 0, LANES[o.lane] ?? 0]}>
             <mesh position={[0, 0.65, 0]} castShadow><boxGeometry args={[1.25, 1.3, 1.35]} /><meshStandardMaterial color="#a86f3d" roughness={0.8} /></mesh>
             <mesh position={[0, 0.65, 0.7]}><boxGeometry args={[1.32, 0.12, 0.08]} /><meshStandardMaterial color="#6d4529" /></mesh>
           </group>

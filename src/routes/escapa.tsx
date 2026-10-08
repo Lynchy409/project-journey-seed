@@ -109,12 +109,6 @@ function EscapaPage() {
 
   return (
     <div className="fixed inset-0 select-none overflow-hidden bg-background">
-      {s.phase !== "select" && (
-        <div className="absolute inset-0">
-          <EscapaScene lvl={s.lvl} qi={s.qi} options={s.options} locked={s.locked} active={s.phase === "play"} input={input} onDoor={onDoor} onHit={onHit} onBone={onBone} />
-        </div>
-      )}
-
       {s.phase !== "select" && (level.mode === "chase" ? (
         <EscapaChase lvl={s.lvl} qi={s.qi} locked={s.locked} active={s.phase === "play"} input={chaseInput} onDoor={onDoor} onHit={onHit} onBone={onBone} />
       ) : (
