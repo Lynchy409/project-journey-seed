@@ -8,6 +8,13 @@
       "when": 1791386269917,
       "tag": "0000_workout_media_list",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791926492820,
+      "tag": "0001_daily_drivers",
+      "breakpoints": true
     }
   ]
 }
