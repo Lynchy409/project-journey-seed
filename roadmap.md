@@ -10,3 +10,5 @@
 - [ ] AI form checker — discuss ideas (not built)
 
 - [x] ¡Escapa!: mix 3D escape rooms with faster landscape chase levels
+- [x] Today: 11 daily drivers with proof, Faith + breathwork, power tiers, identity flash
+- [ ] ¡Escapa! chase mode still needs a browser test
