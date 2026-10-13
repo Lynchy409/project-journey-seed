@@ -43,7 +43,7 @@ export function DailyDrivers({ date }: { date: string }) {
   const { data: logs } = useQuery(driverLogsQuery(date));
   const [open, setOpen] = useState<Driver | null>(null);
   const [text, setText] = useState("");
-  const [flash, setFlash] = useState<{ d: Driver; tier?: string } | null>(null);
+  const [flash, setFlash] = useState<{ d: Driver; tier?: string | undefined } | null>(null);
 
   const byKey = new Map((logs ?? []).map((l) => [l.driver_key, l]));
   const done = DRIVERS.filter((d) => byKey.has(d.key)).length;
