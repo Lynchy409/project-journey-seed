@@ -160,6 +160,33 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_logs: {
+        Row: {
+          created_at: string
+          date: string
+          driver_key: string
+          evidence: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          driver_key: string
+          evidence?: string
+          id?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          driver_key?: string
+          evidence?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       exercise_sets: {
         Row: {
           created_at: string
