@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CorreRouteImport } from './routes/corre'
 import { Route as EscapaRouteImport } from './routes/escapa'
+import { Route as RutaRouteImport } from './routes/ruta'
 import { Route as AuthenticatedInnerRouteImport } from './routes/_authenticated/inner'
 import { Route as AuthenticatedJournalRouteImport } from './routes/_authenticated/journal'
 import { Route as AuthenticatedLearnRouteImport } from './routes/_authenticated/learn'
@@ -47,6 +48,11 @@ const CorreRoute = CorreRouteImport.update({
 const EscapaRoute = EscapaRouteImport.update({
   id: '/escapa',
   path: '/escapa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RutaRoute = RutaRouteImport.update({
+  id: '/ruta',
+  path: '/ruta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedInnerRoute = AuthenticatedInnerRouteImport.update({
@@ -105,6 +111,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/corre': typeof CorreRoute
   '/escapa': typeof EscapaRoute
+  '/ruta': typeof RutaRoute
   '/inner': typeof AuthenticatedInnerRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/learn': typeof AuthenticatedLearnRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/corre': typeof CorreRoute
   '/escapa': typeof EscapaRoute
+  '/ruta': typeof RutaRoute
   '/inner': typeof AuthenticatedInnerRoute
   '/journal': typeof AuthenticatedJournalRoute
   '/learn': typeof AuthenticatedLearnRoute
@@ -139,6 +147,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/corre': typeof CorreRoute
   '/escapa': typeof EscapaRoute
+  '/ruta': typeof RutaRoute
   '/_authenticated/inner': typeof AuthenticatedInnerRoute
   '/_authenticated/journal': typeof AuthenticatedJournalRoute
   '/_authenticated/learn': typeof AuthenticatedLearnRoute
@@ -157,6 +166,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/corre'
     | '/escapa'
+    | '/ruta'
     | '/inner'
     | '/journal'
     | '/learn'
@@ -173,6 +183,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/corre'
     | '/escapa'
+    | '/ruta'
     | '/inner'
     | '/journal'
     | '/learn'
@@ -190,6 +201,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/corre'
     | '/escapa'
+    | '/ruta'
     | '/_authenticated/inner'
     | '/_authenticated/journal'
     | '/_authenticated/learn'
@@ -208,6 +220,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CorreRoute: typeof CorreRoute
   EscapaRoute: typeof EscapaRoute
+  RutaRoute: typeof RutaRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -245,6 +258,13 @@ declare module '@tanstack/react-router' {
       path: '/escapa'
       fullPath: '/escapa'
       preLoaderRoute: typeof EscapaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ruta': {
+      id: '/ruta'
+      path: '/ruta'
+      fullPath: '/ruta'
+      preLoaderRoute: typeof RutaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/inner': {
@@ -355,6 +375,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CorreRoute: CorreRoute,
   EscapaRoute: EscapaRoute,
+  RutaRoute: RutaRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
