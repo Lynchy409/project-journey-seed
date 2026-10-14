@@ -152,6 +152,19 @@ function Games() {
         </div>
       </Card>
 
+      <Card>
+        <p className="text-lg font-extrabold leading-tight">Ruta: Road to Fluent</p>
+        <p className="mt-0.5 text-xs font-bold text-muted-foreground">Travel Spain · create your traveller · earn XP</p>
+        <div className="mt-3">
+          <Link
+            to="/ruta"
+            className="flex h-14 items-center justify-center gap-2 rounded-3xl bg-primary text-base font-extrabold text-primary-foreground shadow-float active:scale-[0.98] transition-transform"
+          >
+            <Gamepad2 className="h-5 w-5" /> Play Ruta
+          </Link>
+        </div>
+      </Card>
+
       {!!modeScores.length && (
         <Card>
           <SectionTitle>Recent rounds</SectionTitle>
