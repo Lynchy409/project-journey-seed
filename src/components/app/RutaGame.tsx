@@ -65,7 +65,7 @@ function Avatar({ c, size = 90 }: { c: Traveller; size?: number }) {
 }
 
 function Create({ onDone }: { onDone: (c: Traveller) => void }) {
-  const [c, setC] = useState<Traveller>({ name: "", skin: SKINS[0], shirt: SHIRTS[0], cap: true });
+  const [c, setC] = useState<Traveller>({ name: "", skin: SKINS[0]!, shirt: SHIRTS[0]!, cap: true });
   const sw = (on: boolean) => `h-11 w-11 rounded-full border-4 ${on ? "border-foreground" : "border-transparent"}`;
   return (
     <div className={`${card} space-y-4`}>
@@ -118,7 +118,7 @@ function WorldMap({ save, onPlay }: { save: RutaSave; onPlay: (id: string) => vo
 function Dialogue({ onDone }: { onDone: () => void }) {
   const [i, setI] = useState(0);
   const [showEn, setShowEn] = useState(false);
-  const line = MADRID_DIALOGUE[i];
+  const line = MADRID_DIALOGUE[i]!;
   const last = i === MADRID_DIALOGUE.length - 1;
   return (
     <div className="space-y-3">
@@ -142,9 +142,9 @@ function SignRunner({ onDone, onQuit }: { onDone: () => void; onQuit: () => void
   const finished = r >= SIGN_ROUNDS.length;
 
   const pick = (o: string | null) => {
-    const ok = o === SIGN_ROUNDS[r].en;
+    const ok = o === SIGN_ROUNDS[r]!.en;
     if (ok) setScore((s) => s + 1);
-    setFb(ok ? "¡Correcto!" : `It was "${SIGN_ROUNDS[r].en}"`);
+    setFb(ok ? "¡Correcto!" : `It was "${SIGN_ROUNDS[r]!.en}"`);
     setTimeout(() => { setFb(null); setR((x) => x + 1); setTime(8); }, 900);
   };
 
@@ -169,7 +169,7 @@ function SignRunner({ onDone, onQuit }: { onDone: () => void; onQuit: () => void
       </div>
     );
   }
-  const round = SIGN_ROUNDS[r];
+  const round = SIGN_ROUNDS[r]!;
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-sm font-bold">
