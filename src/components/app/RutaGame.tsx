@@ -1330,53 +1330,68 @@ function PocketSound({ text }: { text: string }) {
   return <div><button className={pGhost} onClick={speak} aria-label={`Listen to ${text}`}><Volume2 size={17} /> Listen</button>{message && <p role="status" className="mt-2 text-sm text-[#586d64]">{message}</p>}</div>
 }
 
+type PocketMatchPick = { side: 'es' | 'en'; id: string }
+interface PocketMatchInput { selection: PocketMatchPick | null; completed: string[] }
+function pMatchTap(input: PocketMatchInput, side: PocketMatchPick['side'], id: string, allowed: string[]) {
+  const none = { next: input, pair: null as { es: string; en: string; correct: boolean } | null }
+  if (!allowed.includes(id) || input.completed.includes(id)) return none
+  const previous = input.selection
+  if (!previous || previous.side === side) {
+    return { ...none, next: { ...input, selection: previous?.id === id ? null : { side, id } } }
+  }
+  const es = side === 'es' ? id : previous.id
+  const en = side === 'en' ? id : previous.id
+  const correct = es === en
+  return { next: { selection: null, completed: correct ? [...input.completed, es] : input.completed },
+    pair: { es, en, correct } }
+}
 function PocketMatch({ s, update }: { s: PocketSave; update: (fn: (v: PocketSave) => PocketSave) => void }) {
   const ids = pIds(s.group)
   const [left] = useState(() => pShuffle(ids))
   const [right] = useState(() => pShuffle(ids))
-  const [selection, setSelection] = useState<{ side: 'es' | 'en'; id: string } | null>(null)
+  const [selection, setSelection] = useState<PocketMatchPick | null>(null)
   const [feedback, setFeedback] = useState('')
-  const [wrong, setWrong] = useState(false)
   const [help, setHelp] = useState(false)
   const [mixing, setMixing] = useState(true)
-  const lock = useRef(false)
+  // This input state advances synchronously, before React renders. Fast touch
+  // events cannot reuse a stale selection or count a completed pair twice.
+  const input = useRef<PocketMatchInput>({ selection: null, completed: [...s.matched] })
   const advanced = useRef(false)
   useEffect(() => { const t = setTimeout(() => setMixing(false), 700); return () => clearTimeout(t) }, [])
   const done = ids.every(id => s.matched.includes(id))
   function choose(side: 'es' | 'en', id: string) {
-    if (lock.current || mixing || wrong || s.matched.includes(id)) return
-    if (!selection || selection.side === side) { setSelection({ side, id }); setFeedback(''); return }
-    lock.current = true
-    const es = side === 'es' ? id : selection.id
-    const en = side === 'en' ? id : selection.id
-    const correct = es === en
+    const action = pMatchTap(input.current, side, id, ids)
+    input.current = action.next
+    setSelection(action.next.selection)
+    if (!action.pair) return
+    const { es, en, correct } = action.pair
     const attempt = pAttempt(s, es, 'match', pWord(en).en, correct, help || !!s.lookups?.includes(s.session), s.session)
     update(v => {
-      const next = pAppend(v, attempt)
+      const next = pAppend(v, { ...attempt,
+        number: v.attempts.filter(a => a.word === es && a.mode === 'match' && a.session === attempt.session).length + 1 })
       return correct ? { ...next, matched: [...new Set([...next.matched, es])],
         collected: [...new Set([...next.collected, es])] } : next
     })
-    setFeedback(correct ? `${pWord(es).es} → ${pWord(es).en}. Added to your notebook.` : `Not that pair. You selected ${pWord(es).es} and “${pWord(en).en}”. Try again, or reveal the meanings.`)
-    setSelection(null); setWrong(!correct)
-    if (correct) lock.current = false
+    setFeedback(correct ? `${pWord(es).es} → ${pWord(es).en}. Added to your notebook.` : `Not a match: ${pWord(es).es} doesn’t mean “${pWord(en).en}”. Choose another pair whenever you’re ready.`)
   }
   return <div className="space-y-5">
     <div><p className={pSmall}>Match / {POCKET_GROUPS[s.group]!.title}</p><h2 className="mt-2 text-2xl font-black">Connect the words.</h2><p className="mt-2 text-sm text-[#587167]">Tap Spanish, then its English meaning. Either column can go first. No timer.</p></div>
     <div className="flex items-center justify-between"><span className={pSmall}>{ids.filter(id => s.matched.includes(id)).length} / {ids.length} paired</span><span className="flex items-center gap-2 text-sm text-[#587167]"><Shuffle size={16} /> {mixing ? 'Shuffling…' : 'Cards shuffled'}</span></div>
+    <div role="status" aria-live="polite" aria-atomic="true" className="flex h-24 items-center overflow-y-auto rounded-xl bg-[#e6ece3] p-3 text-sm">
+      <p>{feedback || 'Choose a pair. If you make a mistake, the cards stay active. Tap a selected card again to deselect it.'}</p>
+    </div>
     <div className={`grid grid-cols-2 gap-3 ${mixing ? 'pocket-shuffle' : ''}`} aria-busy={mixing}>
       {[{ side: 'es' as const, words: left }, { side: 'en' as const, words: right }].map(col => <div key={col.side} className="space-y-3">
         <p className={pSmall}>{col.side === 'es' ? 'Español' : 'English'}</p>
         {col.words.map(id => <button key={id} data-word={id} data-side={col.side} aria-pressed={selection?.id === id && selection.side === col.side}
-          disabled={mixing || wrong || s.matched.includes(id)}
+          disabled={s.matched.includes(id)}
           onClick={() => choose(col.side, id)}
-          className={`flex min-h-20 w-full items-center justify-center gap-1 break-words rounded-2xl border-2 px-2 py-3 text-center text-base font-bold transition
+          className={`flex min-h-20 w-full touch-manipulation items-center justify-center gap-1 break-words rounded-2xl border-2 px-2 py-3 text-center text-base font-bold transition
             ${s.matched.includes(id) ? 'border-[#b7d4bc] bg-[#e7f1e5] text-[#397348]' : selection?.id === id && selection.side === col.side ? 'border-[#17695c] bg-[#dbece5] text-[#164e40]' : 'border-[#d7dfd5] bg-white text-[#223e35] hover:border-[#7eaa97]'}`}>
           {s.matched.includes(id) && <Check size={16} className="shrink-0" />}<span lang={col.side === 'es' ? 'es' : 'en'}>{col.side === 'es' ? pWord(id).es : pWord(id).en}</span>
         </button>)}
       </div>)}
     </div>
-    {feedback && <p role="status" className="rounded-xl bg-[#e6ece3] p-3 text-sm">{feedback}</p>}
-    {wrong && <button className={pButton} onClick={() => { lock.current = false; setWrong(false); setFeedback('Choose a new pair.'); }}>Try another pair</button>}
     {!done && <button className={pGhost} onClick={() => setHelp(true)}><Lightbulb size={16} /> Reveal meanings</button>}
     {help && <div className="space-y-2 rounded-xl bg-[#fff3d5] p-4 text-sm">{ids.map(id => <p key={id}><b>{pWord(id).es}</b> · {pWord(id).en}</p>)}<p>Matches made with this support are recorded as assisted.</p></div>}
     {done && <div className="space-y-3 rounded-2xl bg-[#e2eddf] p-4"><p className="font-bold">Collected, not forgotten.</p><p className="text-sm">These expressions are in your notebook. We’ll check what stays with you later.</p><button className={`${pButton} w-full`} onClick={() => {
