@@ -44,7 +44,7 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab = "bias" | "log" | "rules" | "lessons" | "news" | "calc";
+type Tab = "bias" | "log" | "cal" | "rules" | "lessons" | "news" | "calc";
 
 const TAB_TITLES: Record<Tab, string> = {
   bias: "Bias tracker",
@@ -62,6 +62,7 @@ function Trade() {
       <div className="flex flex-wrap gap-2">
         <Chip active={tab === "bias"} onClick={() => setTab("bias")} className="flex-1">Bias</Chip>
         <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">Log</Chip>
+        <Chip active={tab === "cal"} onClick={() => setTab("cal")} className="flex-1">Calendar</Chip>
         <Chip active={tab === "rules"} onClick={() => setTab("rules")} className="flex-1">Rules</Chip>
         <Chip active={tab === "lessons"} onClick={() => setTab("lessons")} className="flex-1">Lessons</Chip>
         <Chip active={tab === "news"} onClick={() => setTab("news")} className="flex-1">News</Chip>
@@ -69,6 +70,7 @@ function Trade() {
       </div>
       {tab === "bias" && <BiasTab />}
       {tab === "log" && <LogTab />}
+      {tab === "cal" && <TradeCalendar />}
       {tab === "rules" && <RulesTab />}
       {tab === "lessons" && <LessonsTab />}
       {tab === "news" && <NewsTab />}

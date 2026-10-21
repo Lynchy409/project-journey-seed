@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, Moon, Sunrise } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card, ProfileButton } from "@/components/app/AppShell";
-import { MomentumRing } from "@/components/app/MomentumRing";
+import { PlayerCard } from "@/components/app/PlayerCard";
 import { Bar, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, TextArea, TextInput, Chip } from "@/components/app/ui";
 import { LittleWins } from "@/components/app/LittleWins";
 import { DailyDrivers } from "@/components/app/DailyDrivers";
@@ -110,25 +110,19 @@ function Today() {
       title={first ?? "Today"}
       right={<ProfileButton name={profile?.display_name} avatar={profile?.avatar_url} />}
     >
-      <Card className="flex items-center gap-5">
-        <MomentumRing value={momentum} />
-        <div className="min-w-0">
-          <div className="flex flex-wrap gap-1.5">
+      <PlayerCard
+        name={profile?.display_name}
+        avatar={profile?.avatar_url}
+        date={date}
+        chips={
+          <>
             <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${DAY_TYPES.find((d) => d.value === dayType)?.cls}`}>
               {dayLabel} day
             </span>
-            {shift && <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-bold">{shift.name}</span>}
-          </div>
-          <p className="mt-2 text-lg font-extrabold leading-tight">
-            {comeback ? "Comeback day" : dayScore === 100 ? "Day complete" : `${nnDone} of ${nn.length} non-negotiables`}
-          </p>
-          <p className="mt-1 text-sm font-medium text-muted-foreground">
-            {comeback
-              ? "One good day pulls your momentum straight back up."
-              : "Today's score moves momentum by a fifth. Small wins compound."}
-          </p>
-        </div>
-      </Card>
+            {shift && <span className="rounded-full bg-background/10 px-2.5 py-1 text-xs font-bold">{shift.name}</span>}
+          </>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <Link
