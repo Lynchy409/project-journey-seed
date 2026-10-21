@@ -41,7 +41,7 @@ export const OUTCOMES: { key: TradeOutcome; label: string; emoji: string; cls: s
 
 export function parseOutcome(evidence: string): { outcome: TradeOutcome | null; note: string } {
   const m = /^\[(executed|patient|breach)\]\s*(.*)$/s.exec(evidence);
-  return m ? { outcome: m[1] as TradeOutcome, note: m[2] } : { outcome: null, note: evidence };
+  return m ? { outcome: m[1] as TradeOutcome, note: m[2] ?? "" } : { outcome: null, note: evidence };
 }
 
 export const allDriverLogsQuery = queryOptions({
