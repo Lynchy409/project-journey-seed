@@ -10,7 +10,7 @@ export function useXp(date: string) {
   return { total, today, ...levelFromXp(total) };
 }
 
-export function PlayerCard({ name, avatar, date, chips }: { name?: string | null; avatar?: string | null; date: string; chips?: React.ReactNode }) {
+export function PlayerCard({ name, avatar, date, chips }: { name?: string | null | undefined; avatar?: string | null | undefined; date: string; chips?: React.ReactNode }) {
   const { level, into, needed, total, today } = useXp(date);
   const pct = Math.min(100, (into / needed) * 100);
   return (
