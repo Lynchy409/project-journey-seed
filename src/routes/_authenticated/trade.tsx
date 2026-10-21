@@ -50,13 +50,6 @@ type Tab = "bias" | "log" | "cal" | "rules" | "lessons" | "news" | "calc";
 const TAB_TITLES: Record<Tab, string> = {
   bias: "Bias tracker",
   log: "Trade log",
-  rules: "My rules",
-  lessons: "My lessons",
-  news: "News",
-  calc: "Lot size calculator",
-  const TAB_TITLES: Record<Tab, string> = {
-  bias: "Bias tracker",
-  log: "Trade log",
   cal: "Trading calendar",
   rules: "My rules",
   lessons: "My lessons",
@@ -64,7 +57,7 @@ const TAB_TITLES: Record<Tab, string> = {
   calc: "Lot size calculator",
 };
 
-};
+
 
 function Trade() {
   const [tab, setTab] = useState<Tab>("bias");
