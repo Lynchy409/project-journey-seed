@@ -289,7 +289,13 @@ export function goalValue(
     return workouts.filter(
       (w) =>
         !t.exercise ||
-        setsOf(w).some((s) => s.exercise.trim().toLowerCase() === t.exercise.trim().toLowerCase()),
+        setsOf(w).some(
+          (s) =>
+            s.exercise.trim().toLowerCase() === t.exercise.trim().toLowerCase() &&
+            (!t.load_type || s.load_type === t.load_type) &&
+            (!t.side || s.side === t.side) &&
+            (t.measure !== "weight" || (s.reps ?? 0) >= t.min_reps),
+        ),
     ).length;
   const values: number[] = [];
   for (const w of workouts) {
