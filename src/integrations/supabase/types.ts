@@ -105,6 +105,7 @@ export type Database = {
           energy: number | null
           id: string
           lesson: string | null
+          recovery: Json
           steps: number | null
           updated_at: string
           user_id: string
@@ -118,6 +119,7 @@ export type Database = {
           energy?: number | null
           id?: string
           lesson?: string | null
+          recovery?: Json
           steps?: number | null
           updated_at?: string
           user_id: string
@@ -131,6 +133,7 @@ export type Database = {
           energy?: number | null
           id?: string
           lesson?: string | null
+          recovery?: Json
           steps?: number | null
           updated_at?: string
           user_id?: string
@@ -238,6 +241,7 @@ export type Database = {
       exercise_sets: {
         Row: {
           created_at: string
+          details: Json
           exercise: string
           id: string
           reps: number | null
@@ -248,6 +252,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          details?: Json
           exercise: string
           id?: string
           reps?: number | null
@@ -258,6 +263,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          details?: Json
           exercise?: string
           id?: string
           reps?: number | null
@@ -275,6 +281,156 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      fitness_plans: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          notes: string
+          steps: Json
+          target: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          kind: string
+          name: string
+          notes?: string
+          steps?: Json
+          target?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          notes?: string
+          steps?: Json
+          target?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      fitness_preferences: {
+        Row: {
+          data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      fitness_tasks: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          slot: string
+          source_key: string
+          status: string
+          template_id: string | null
+          title: string
+          user_id: string
+          workout_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          slot: string
+          source_key: string
+          status?: string
+          template_id?: string | null
+          title: string
+          user_id?: string
+          workout_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          slot?: string
+          source_key?: string
+          status?: string
+          template_id?: string | null
+          title?: string
+          user_id?: string
+          workout_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fitness_tasks_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "fitness_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fitness_tasks_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fitness_templates: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          payload: Json
+          slot: string
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          kind: string
+          name: string
+          payload?: Json
+          slot: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          payload?: Json
+          slot?: string
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: []
       }
       flashcards: {
         Row: {
@@ -326,6 +482,7 @@ export type Database = {
           status: string
           target_value: number | null
           title: string
+          tracking: Json
           updated_at: string
           user_id: string
         }
@@ -342,6 +499,7 @@ export type Database = {
           status?: string
           target_value?: number | null
           title: string
+          tracking?: Json
           updated_at?: string
           user_id: string
         }
@@ -358,6 +516,7 @@ export type Database = {
           status?: string
           target_value?: number | null
           title?: string
+          tracking?: Json
           updated_at?: string
           user_id?: string
         }
@@ -1279,6 +1438,7 @@ export type Database = {
         Row: {
           created_at: string
           date: string
+          details: Json
           id: string
           kind: string
           media: Json
@@ -1292,6 +1452,7 @@ export type Database = {
         Insert: {
           created_at?: string
           date?: string
+          details?: Json
           id?: string
           kind?: string
           media?: Json
@@ -1305,6 +1466,7 @@ export type Database = {
         Update: {
           created_at?: string
           date?: string
+          details?: Json
           id?: string
           kind?: string
           media?: Json
@@ -1322,6 +1484,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_fitness_workout: { Args: { p_id: string }; Returns: undefined }
+      move_fitness_task: {
+        Args: { p_date: string; p_id: string; p_swap_id?: string }
+        Returns: undefined
+      }
+      save_fitness_workout: {
+        Args: {
+          p_id: string
+          p_sets: Json
+          p_task_id?: string
+          p_workout: Json
+        }
+        Returns: string
+      }
       seed_user_defaults: { Args: { _user_id: string }; Returns: undefined }
     }
     Enums: {

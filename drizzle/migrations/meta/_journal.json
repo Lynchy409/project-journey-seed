@@ -29,6 +29,13 @@
       "when": 1792946605349,
       "tag": "0003_market_inspections",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792956245400,
+      "tag": "0004_fitness_workspace",
+      "breakpoints": true
     }
   ]
 }
