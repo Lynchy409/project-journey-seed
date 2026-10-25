@@ -272,7 +272,7 @@ function LogTab() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TradeRow | null>(null);
   const [recapOpen, setRecapOpen] = useState(false);
-  const stats = tradeStats(trades ?? []);
+  const stats = tradeStats((trades ?? []).filter((t) => (t.source ?? "live") === "live"));
 
   const remove = useMutation({
     mutationFn: deleteTrade,
@@ -532,10 +532,44 @@ function TradeSheet({
           when: "",
         },
       );
+    } else {
+      // Fresh form for a new trade — never inherit the previously edited trade
+      setF({
+        date: todayISO(),
+        time_of_trade: "",
+        exit_time: "",
+        pair: "",
+        strategy: "all_tf_aligned",
+        setup: "",
+        entry_tf: "",
+        confirmation: "",
+        direction: "long",
+        source: "live",
+        entry: "",
+        stop: "",
+        target: "",
+        rr: "",
+        outcome: "open",
+        result_r: "",
+        market_feeling: "",
+        pair_feeling: "",
+        emotions: "",
+        notes: "",
+        market_did: "",
+        external_lesson: "",
+        screenshot_url: "",
+        lesson: "",
+      });
+      setTrendRows([{ tf: "", direction: "bullish" }]);
+      setConfRows([{ type: "", tf: "", role: "context" }]);
+      setFurther({ sought: "unknown", level: "", when: "" });
       setMarkLesson(false);
       setPhoto(null);
-      setPreview(trade.screenshot_url ?? null);
+      setPreview(null);
     }
+    setMarkLesson(false);
+    setPhoto(null);
+    setPreview(trade ? (trade.screenshot_url ?? null) : null);
   }, [open, trade]);
   const pickPhoto = (file: File | null) => {
     if (preview) URL.revokeObjectURL(preview);
@@ -1501,7 +1535,7 @@ function BacktestSheet({
       });
       if (f.verdict.trim()) {
         await addEntry({
-          text: `Backtest — ${f.question.trim()}: ${f.verdict.trim().slice(0, 400)}`,
+          text: `Backtest — ${f.question.trim()}: ${f.verdict.trim()}`,
           pillar: "trading",
           entry_type: "lesson",
           is_lesson: true,
@@ -1596,6 +1630,9 @@ type EdgeFilter = {
   setup: string;
   entryTf: string;
   outcome: string;
+  confType: string;
+  confTf: string;
+  confRole: string;
 };
 
 function EdgeTab() {
@@ -1606,6 +1643,9 @@ function EdgeTab() {
     setup: "",
     entryTf: "",
     outcome: "",
+    confType: "",
+    confTf: "",
+    confRole: "",
   });
   const [showing, setShowing] = useState(10);
 
@@ -1616,13 +1656,23 @@ function EdgeTab() {
 
   const rows = (trades ?? []).filter(
     (t) =>
-      (filter.source === "" || t.source === filter.source) &&
+      (filter.source === "" || (t.source ?? "live") === filter.source) &&
       (filter.strategy === "" || t.strategy === filter.strategy) &&
       (filter.setup === "" || t.setup === filter.setup) &&
       (filter.entryTf === "" || t.entry_tf === filter.entryTf) &&
-      (filter.outcome === "" || t.outcome === filter.outcome),
+      (filter.outcome === "" || t.outcome === filter.outcome) &&
+      (!filter.confType ||
+        (Array.isArray(t.htf_confluences) &&
+          (t.htf_confluences as Confluence[]).some(
+            (c) =>
+              c.type === filter.confType &&
+              (!filter.confTf || c.tf === filter.confTf) &&
+              (!filter.confRole || c.role === filter.confRole),
+          ))),
   );
   const stats = tradeStats(rows);
+  const dates = rows.map((t) => t.date).sort();
+  const range = dates.length ? `${dates[0]} to ${dates[dates.length - 1]}` : "";
 
   return (
     <>
@@ -1641,6 +1691,10 @@ function EdgeTab() {
             tone={stats.totalR >= 0 ? "text-trading" : "text-destructive"}
           />
         </div>
+        <p className="mt-2 text-xs font-bold text-muted-foreground">
+          {stats.closed} closed · {range || "no dates"}
+          {filter.outcome ? " · win rate is 100%/0% by construction when filtering by outcome" : ""}
+        </p>
       </Card>
       <Card>
         <Field label="Source">
@@ -1714,6 +1768,40 @@ function EdgeTab() {
               </option>
             ))}
           </SelectInput>
+        </Field>
+        <Field label="Must include a confluence">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Checks the linked confluence rows — e.g. order block on 1m as your entry, without
+            catching trades where 1m was only the confirmation.
+          </p>
+          <div className="space-y-2">
+            <SelectInput value={filter.confType} onChange={(e) => set("confType", e.target.value)}>
+              <option value="">Any type</option>
+              {SETUPS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </SelectInput>
+            <div className="grid grid-cols-2 gap-2">
+              <SelectInput value={filter.confTf} onChange={(e) => set("confTf", e.target.value)}>
+                <option value="">Any timeframe</option>
+                {TIMEFRAMES.map((tf) => (
+                  <option key={tf} value={tf}>
+                    {tf}
+                  </option>
+                ))}
+              </SelectInput>
+              <SelectInput
+                value={filter.confRole}
+                onChange={(e) => set("confRole", e.target.value)}
+              >
+                <option value="">Any role</option>
+                <option value="context">Context</option>
+                <option value="entry">Entry</option>
+              </SelectInput>
+            </div>
+          </div>
         </Field>
       </Card>
       {!rows.length ? (

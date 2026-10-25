@@ -166,6 +166,54 @@ function Market() {
         </div>
       </Card>
 
+      {(lesson || term) && (
+        <Card>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 shrink-0 text-learning" />
+              <p className="text-lg font-extrabold leading-none">
+                {lesson ? lesson.title : term!.term}
+              </p>
+            </div>
+            <button onClick={() => openItem(null, null)} className="text-muted-foreground">
+              ×
+            </button>
+          </div>
+          <p className="mt-3 text-sm font-medium leading-relaxed">
+            {lesson ? lesson.content : `${term!.definition} Example: ${term!.example}`}
+          </p>
+          <div className="mt-3 rounded-2xl bg-secondary p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Check yourself
+            </p>
+            <p className="mt-1 text-sm font-semibold">
+              {lesson ? lesson.question : term!.question}
+            </p>
+            {showAnswer ? (
+              <p className="mt-2 text-sm font-bold text-learning">
+                {lesson ? lesson.answer : term!.answer}
+              </p>
+            ) : (
+              <GhostButton onClick={() => setShowAnswer(true)}>Show answer</GhostButton>
+            )}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <GhostButton
+              onClick={() => mark.mutate({ id: lesson ? lesson.id : term!.id, status: "learning" })}
+              className="flex-1"
+            >
+              Still learning
+            </GhostButton>
+            <PrimaryButton
+              onClick={() => mark.mutate({ id: lesson ? lesson.id : term!.id, status: "learned" })}
+              className="flex-1"
+            >
+              Learned it
+            </PrimaryButton>
+          </div>
+        </Card>
+      )}
+
       {MODULES.map((mod) => {
         const modDone = mod.lessons.filter((l) => statusOf(l.id) === "learned").length;
         return (
@@ -226,54 +274,6 @@ function Market() {
           })}
         </div>
       </Card>
-
-      {(lesson || term) && (
-        <Card>
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 shrink-0 text-learning" />
-              <p className="text-lg font-extrabold leading-none">
-                {lesson ? lesson.title : term!.term}
-              </p>
-            </div>
-            <button onClick={() => openItem(null, null)} className="text-muted-foreground">
-              ×
-            </button>
-          </div>
-          <p className="mt-3 text-sm font-medium leading-relaxed">
-            {lesson ? lesson.content : `${term!.definition} Example: ${term!.example}`}
-          </p>
-          <div className="mt-3 rounded-2xl bg-secondary p-3">
-            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-              Check yourself
-            </p>
-            <p className="mt-1 text-sm font-semibold">
-              {lesson ? lesson.question : term!.question}
-            </p>
-            {showAnswer ? (
-              <p className="mt-2 text-sm font-bold text-learning">
-                {lesson ? lesson.answer : term!.answer}
-              </p>
-            ) : (
-              <GhostButton onClick={() => setShowAnswer(true)}>Show answer</GhostButton>
-            )}
-          </div>
-          <div className="mt-3 flex gap-2">
-            <GhostButton
-              onClick={() => mark.mutate({ id: lesson ? lesson.id : term!.id, status: "learning" })}
-              className="flex-1"
-            >
-              Still learning
-            </GhostButton>
-            <PrimaryButton
-              onClick={() => mark.mutate({ id: lesson ? lesson.id : term!.id, status: "learned" })}
-              className="flex-1"
-            >
-              Learned it
-            </PrimaryButton>
-          </div>
-        </Card>
-      )}
     </>
   );
 }

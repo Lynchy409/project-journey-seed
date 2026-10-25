@@ -105,7 +105,7 @@ export const MODULES: Module[] = [
         id: "m2l3",
         title: "Market structure basics",
         content:
-          "Uptrends are higher highs and higher lows; downtrends are lower highs and lower lows. A break of structure (BOS) is a continuation signal; a change of character (CHoCH) is the first hint the trend is failing. These are the terms behind order blocks and FVGs: an order block is where big orders were filled; a fair value gap is an imbalance where price moved so fast one side of the trade never got filled — the market often returns to rebalance it.",
+          "Uptrends are higher highs and higher lows; downtrends are lower highs and lower lows. A break of structure (BOS) is a continuation signal; a change of character (CHoCH) is the first hint the trend is failing. Order blocks and FVGs come from ICT-style analysis: an order block is understood as a zone where large orders were filled before a strong move, and a fair value gap is an imbalance where price moved so fast that one side of the market barely traded — price often returns to these zones. These are popular trading interpretations, not proven laws — treat them as concepts to test on your own data.",
         question: "What is the difference between a BOS and a CHoCH?",
         answer:
           "BOS continues the trend; CHoCH is the first break against it — a possible reversal signal.",
@@ -276,18 +276,21 @@ export const TERMS: Term[] = [
     id: "t-ob",
     term: "Order block",
     definition:
-      "Candle/zone where large orders were filled before a strong move — often revisited.",
+      "In ICT-style analysis: the candle/zone where large orders were filled before a strong move. Price often returns to it.",
     example: "Down candle before an impulsive rally becomes a bullish OB.",
-    question: "Why does price often return to an order block?",
-    answer: "Unfilled institutional interest remains in that zone.",
+    question: "Why does price often return to an order block (per ICT analysis)?",
+    answer:
+      "Unfilled institutional interest is understood to remain in that zone — an interpretation to test, not a law.",
   },
   {
     id: "t-fvg",
     term: "Fair value gap (FVG)",
-    definition: "Imbalance where price moved so fast one side never traded — often rebalanced.",
+    definition:
+      "Imbalance where price moved so fast one side barely traded — often rebalanced, in ICT-style analysis.",
     example: "Gap between candle 1's high and candle 3's low.",
     question: "What does an FVG represent?",
-    answer: "An imbalance the market may return to fill.",
+    answer:
+      "An imbalance the market may return to fill — a popular interpretation, not a guarantee.",
   },
   {
     id: "t-liquidity",
