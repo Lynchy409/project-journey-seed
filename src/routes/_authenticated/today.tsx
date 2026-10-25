@@ -7,6 +7,9 @@ import { AppShell, Card, ProfileButton } from "@/components/app/AppShell";
 import { PlayerCard } from "@/components/app/PlayerCard";
 import { Bar, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, TextArea, TextInput, Chip } from "@/components/app/ui";
 import { LittleWins } from "@/components/app/LittleWins";
+import { FitnessDailyTasks, FitnessQuickLog } from "@/components/app/FitnessHub";
+import { fitnessTasksQuery, trainingSlotForTask } from "@/lib/fitness";
+import type { FitnessSlot } from "@/lib/fitness-types";
 import { DailyDrivers } from "@/components/app/DailyDrivers";
 import { profileQuery } from "@/lib/profile";
 import { PILLARS, type Pillar } from "@/lib/pillars";
@@ -50,6 +53,8 @@ function Today() {
   const date = todayISO();
   const qc = useQueryClient();
   const [checkinOpen, setCheckinOpen] = useState(false);
+  const [fitnessSlot, setFitnessSlot] = useState<FitnessSlot | null>(null);
+  const { data: fitnessTasks } = useQuery(fitnessTasksQuery);
 
   const { data: profile } = useQuery(profileQuery);
   const { data: entry } = useQuery(dayEntryQuery(date));
@@ -64,8 +69,12 @@ function Today() {
   const tpl = templates?.find((t) => t.day_type === dayType);
   const tasks = tpl?.template_tasks ?? [];
   const doneMap = new Map((logs ?? []).map((l) => [l.template_task_id, l.done]));
+  const isTaskDone = (t: (typeof tasks)[number]) => {
+    const slot = t.pillar === "fitness" ? trainingSlotForTask(t.title) : null;
+    return !!doneMap.get(t.id) || (!!slot && !!fitnessTasks?.some(f => f.date === date && (f.slot === slot || (/gym.*or.*sprint/i.test(t.title) && f.slot === "cardio")) && f.status === "done"));
+  };
   const nn = tasks.filter((t) => t.non_negotiable);
-  const nnDone = nn.filter((t) => doneMap.get(t.id)).length;
+  const nnDone = nn.filter(isTaskDone).length;
   const dayScore = nn.length ? Math.round((nnDone / nn.length) * 100) : 0;
 
   const todayMomentum = momentumRows?.find((m) => m.date === date)?.momentum;
@@ -92,7 +101,7 @@ function Today() {
         non_negotiable: task.non_negotiable,
         done: next,
       });
-      const done = nn.filter((t) => (t.id === task.id ? next : doneMap.get(t.id))).length;
+      const done = nn.filter((t) => (t.id === task.id ? next : isTaskDone(t))).length;
       await recomputeMomentum(date, nn.length ? Math.round((done / nn.length) * 100) : 0);
     },
     onSuccess: () => {
@@ -140,6 +149,8 @@ function Today() {
       </div>
 
       <DailyDrivers date={date} />
+      <FitnessDailyTasks compact initialDate={date} />
+      {fitnessSlot && <FitnessQuickLog slot={fitnessSlot} date={date} onClose={() => setFitnessSlot(null)} />}
 
 
       {lesson && (
@@ -167,12 +178,13 @@ function Today() {
         ) : (
           <ul className="mt-3 space-y-2">
             {tasks.map((t) => {
-              const done = !!doneMap.get(t.id);
+              const done = isTaskDone(t);
+              const linkedSlot = t.pillar === "fitness" ? trainingSlotForTask(t.title) : null;
               const p = (t.pillar as Pillar) in PILLARS ? (t.pillar as Pillar) : "life";
               return (
                 <li key={t.id}>
                   <button
-                    onClick={() => toggle.mutate(t)}
+                    onClick={() => linkedSlot ? setFitnessSlot(linkedSlot) : toggle.mutate(t)}
                     className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${
                       done ? "border-transparent bg-secondary" : "bg-card"
                     }`}
@@ -191,6 +203,7 @@ function Today() {
                       <span className={`text-xs font-bold ${PILLARS[p].text}`}>
                         {PILLARS[p].label}
                         {t.non_negotiable ? " · non-negotiable" : ""}
+                        {linkedSlot ? " · uses training log" : ""}
                       </span>
                     </span>
                   </button>
@@ -215,7 +228,7 @@ function Today() {
           This week's goals
         </SectionTitle>
         {weekly.length === 0 ? (
-          <Empty>Set up to three weekly goals per pillar in Plan.</Empty>
+          <Empty>Add weekly goals in Plan.</Empty>
         ) : (
           <ul className="mt-3 space-y-3">
             {weekly.map((g) => {

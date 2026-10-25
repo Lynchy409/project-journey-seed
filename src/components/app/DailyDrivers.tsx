@@ -65,8 +65,11 @@ export function DailyDrivers({ date }: { date: string }) {
   const [flash, setFlash] = useState<{ d: Driver; xp: number } | null>(null);
 
   const byKey = new Map((logs ?? []).map((l) => [l.driver_key, l]));
-  const done = DRIVERS.filter((d) => byKey.has(d.key)).length;
-  const total = DRIVERS.length;
+  // Fitness now uses structured tasks and sessions. Preserve old logged evidence,
+  // but do not offer a second, unrelated text-only completion for the same activity.
+  const visibleDrivers = DRIVERS.filter(d => d.tag !== "Train" || byKey.has(d.key));
+  const done = visibleDrivers.filter((d) => byKey.has(d.key)).length;
+  const total = visibleDrivers.length;
   const tier = tierFor(done);
   const xpToday = (logs ?? []).reduce((s, l) => s + driverXp(l.driver_key, l.evidence), 0);
 
@@ -131,7 +134,7 @@ export function DailyDrivers({ date }: { date: string }) {
               {t === 1 ? "🔥 " : ""}{TIER_LABELS[t]}
             </p>
             <ul className="space-y-2">
-              {DRIVERS.filter((d) => d.tier === t).map((d) => {
+              {visibleDrivers.filter((d) => d.tier === t).map((d) => {
                 const log = byKey.get(d.key);
                 const shown = log ? (d.key === "trading" ? parseOutcome(log.evidence).note : log.evidence) : d.objective;
                 const xp = log ? driverXp(d.key, log.evidence) : d.xp;

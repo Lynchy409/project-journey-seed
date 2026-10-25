@@ -8,6 +8,8 @@ import { PILLARS, type Pillar } from "@/lib/pillars";
 import { todayISO } from "@/lib/dates";
 import { addWin, deleteWin, logWin, undoWin, winLogsQuery, winsQuery, type Win } from "@/lib/wins";
 import { beep } from "@/lib/morning";
+import { SessionComposer, SessionDetail } from "./FitnessSession";
+import { fitnessHistoryQuery, trainingSlotForTask, type FitnessWorkout } from "@/lib/fitness";
 
 const ORDER: (Pillar | "all")[] = ["all", "fitness", "trading", "learning", "life"];
 
@@ -17,6 +19,19 @@ export function LittleWins({ only, compact = false }: { only?: Pillar; compact?:
   const { data: logs } = useQuery(winLogsQuery);
   const [filter, setFilter] = useState<Pillar | "all">(only ?? "all");
   const [running, setRunning] = useState<Win | null>(null);
+  const [fitnessWin, setFitnessWin] = useState<Win | null>(null);
+  const history = useQuery(fitnessHistoryQuery);
+  const [view, setView] = useState<FitnessWorkout | null>(null);
+  const undoOrReview = (logId: string, fitness: boolean) => {
+    if (fitness && !history.isSuccess) {
+      toast.error("Session history is unavailable. Retry before changing this activity.");
+      return;
+    }
+    const w = history.data?.find(w => w.id === logId);
+    if (w) setView(w);
+    else undo.mutate(logId);
+  };
+  const openWin = (w: Win) => w.pillar === "fitness" ? setFitnessWin(w) : setRunning(w);
   const [adding, setAdding] = useState(false);
   const [editMode, setEditMode] = useState(false);
 
@@ -39,7 +54,7 @@ export function LittleWins({ only, compact = false }: { only?: Pillar; compact?:
   const quick = () => {
     const pool = list.filter((w) => !doneIds.has(w.id) && w.minutes <= 5);
     const w = pool[Math.floor(Math.random() * pool.length)];
-    if (w) setRunning(w);
+    if (w) openWin(w);
     else toast("You've cleared all the quick ones today");
   };
 
@@ -81,20 +96,20 @@ export function LittleWins({ only, compact = false }: { only?: Pillar; compact?:
           return (
             <li key={w.id} className={`flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2 ${logId ? p.soft : "bg-secondary"}`}>
               <button
-                aria-label={logId ? "Undo" : "Tick off"}
-                onClick={() => (logId ? undo.mutate(logId) : done.mutate(w))}
+                aria-label={logId ? w.pillar === "fitness" ? "Review completed activity" : "Undo" : w.pillar === "fitness" ? "Log activity" : "Tick off"}
+                onClick={() => (logId ? undoOrReview(logId, w.pillar === "fitness") : w.pillar === "fitness" ? openWin(w) : done.mutate(w))}
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all ${logId ? `${p.bg} border-transparent text-primary-foreground scale-105` : "bg-card"}`}
               >
                 {logId && <Check className="h-5 w-5" />}
               </button>
-              <button onClick={() => !logId && setRunning(w)} className="min-w-0 flex-1 text-left">
+              <button onClick={() => logId ? undoOrReview(logId, w.pillar === "fitness") : openWin(w)} className="min-w-0 flex-1 text-left">
                 <p className={`text-sm font-extrabold ${logId ? "line-through opacity-60" : ""}`}>{w.title}</p>
                 <p className={`text-[11px] font-bold ${p.text}`}>{p.label} · {w.minutes} min</p>
               </button>
               {editMode ? (
                 <button aria-label="Delete win" onClick={() => remove.mutate(w.id)} className="text-muted-foreground"><Trash2 className="h-4 w-4" /></button>
               ) : !logId && (
-                <button aria-label="Start timer" onClick={() => setRunning(w)} className="flex h-10 w-10 items-center justify-center rounded-full bg-card"><Play className="h-4 w-4" /></button>
+                <button aria-label="Start timer" onClick={() => openWin(w)} className="flex h-10 w-10 items-center justify-center rounded-full bg-card"><Play className="h-4 w-4" /></button>
               )}
             </li>
           );
@@ -109,6 +124,8 @@ export function LittleWins({ only, compact = false }: { only?: Pillar; compact?:
 
       {running && <WinTimer win={running} onClose={() => setRunning(null)} onDone={() => done.mutate(running)} onShuffle={quick} />}
       <AddWinSheet open={adding} onOpenChange={setAdding} sort={wins?.length ?? 0} defaultPillar={only ?? "fitness"} />
+      {view && <SessionDetail workout={view} onClose={() => setView(null)} />}
+      {fitnessWin && <SessionComposer winId={fitnessWin.id} initialSlot={trainingSlotForTask(fitnessWin.title) ?? "strength"} movement={{ name: fitnessWin.title, kind: /run/i.test(fitnessWin.title) ? "run" : /bag/i.test(fitnessWin.title) ? "boxing" : /yoga/i.test(fitnessWin.title) ? "yoga" : /stretch/i.test(fitnessWin.title) ? "mobility" : "other" }} onClose={() => setFitnessWin(null)} />}
     </Card>
   );
 }

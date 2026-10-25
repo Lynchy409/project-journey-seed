@@ -1,5 +1,42 @@
 # Journey trading QA
 
+## Fitness development verification
+
+- TypeScript and production build: passed.
+- Fitness: 17 pure-function tests plus an isolated PostgreSQL migration/RLS integration test passed.
+- Market regressions: 17 tests passed.
+- New fitness code lint: no errors; two existing-style Fast Refresh export warnings.
+- Browser fixtures: previous sets, session/task/goal linkage, templates/versioning, movement source popup, plans/milestones, routine completion, timer, rest override add/remove, retry safety, deletion and foundations checked.
+- Main routes render in an isolated authenticated fixture; Review uses its existing full-screen flow rather than AppShell.
+- Mobile 375px, desktop 1280px and short-window 1280x500 layouts inspected.
+- Actual Lovable database migration, real-account persistence/RLS and publication are NOT complete. See `docs/fitness-release.md`.
+
+## Fitness expansion acceptance checks
+- Baseline: unauthenticated /train redirects to the existing sign-in screen.
+- Preserve Today, Plan, Trade, Train, Learn, Inner, Profile, Journal and Review navigation.
+- Train opens Today overview, Sessions, Library, Plans and Progress.
+- Library retains the existing routine builder/player; Progress retains lift search and weight history.
+- Broad daily strength/cardio/recovery slots open a chooser, not an immediate tick.
+- Recurring days and rest days are editable. Move, swap, skip and reopen tasks.
+- Save a session once: history, matching task and linked goals reflect the same record.
+- Strength shows previous performed-session weight AND reps for every set.
+- Track bodyweight, added load, assistance, timed holds, side and effort distinctly.
+- Manual run distance/time calculates pace; comparable distance records exclude different run types.
+- Sprint intervals, boxing, jiu-jitsu, circuits and user-defined sessions retain per-round/set results.
+- Save templates, duplicate/edit versions, start from a template, save a logged session as a template.
+- Cindy, circuit and bag-drill starter formats are source-labelled or explicitly user-editable.
+- Movement library supports search, categories, favourites, try-later, custom entries and attempt logs.
+- Core and neck are explicit categories with source-linked guidance, not fabricated optimality.
+- Editable skill/strength plans preserve completed milestones; completion is explicitly user-confirmed.
+- App-wide goals support manual, best performance, calendar totals, session counts and milestones.
+- Weekly/monthly totals use actual activity dates; several holds cannot satisfy one continuous hold.
+- Body check-ins reuse existing weight/water/energy and allow optional sleep/recovery notes.
+- Failed save retains the draft; retry uses the same workout ID.
+- Missing migration is a visible blocking message, not an empty history or successful save.
+- Desktop/mobile layouts, keyboard labels, dialogs, timer controls and source links are checked.
+- Browser interception tests are isolated QA, never a production auth bypass.
+- Production persistence/RLS remain unverified until the migration is applied in the actual Lovable database.
+
 The production app requires sign-in. No user credentials are available. Browser QA
 uses intercepted Supabase responses in an isolated local browser, never a bypass in
 application code. Mocked persistence is not production persistence verification.
