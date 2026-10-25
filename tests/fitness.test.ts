@@ -180,6 +180,49 @@ test("session consistency counts unique workouts, not sets", () => {
   assert.equal(goalValue(tracking({ mode: "count" }), rows), 2);
   assert.equal(goalValue(tracking({ mode: "count", exercise: "Bench press" }), rows), 1);
 });
+test("session consistency respects load type, side and minimum reps on the same set", () => {
+  const rows = [
+    workout("wrong-load", "2026-10-25", {}, [{ load_type: "assisted", side: "left", reps: 8 }]),
+    workout("wrong-side", "2026-10-25", {}, [{ load_type: "external", side: "right", reps: 8 }]),
+    workout("too-few", "2026-10-25", {}, [{ load_type: "external", side: "left", reps: 2 }]),
+    workout("split-filters", "2026-10-25", {}, [
+      { load_type: "external", side: "right", reps: 8 },
+      { load_type: "assisted", side: "left", reps: 8 },
+    ]),
+    workout("matching", "2026-10-25", {}, [
+      { load_type: "external", side: "left", reps: 5 },
+      { load_type: "external", side: "left", reps: 6 },
+    ]),
+  ];
+  assert.equal(
+    goalValue(
+      tracking({
+        mode: "count",
+        exercise: "Bench press",
+        measure: "weight",
+        load_type: "external",
+        side: "left",
+        min_reps: 5,
+      }),
+      rows,
+    ),
+    1,
+  );
+  assert.equal(
+    goalValue(
+      tracking({
+        mode: "count",
+        exercise: "Bench press",
+        measure: "reps",
+        load_type: "external",
+        side: "left",
+        min_reps: 10,
+      }),
+      rows,
+    ),
+    2,
+  );
+});
 test("run comparisons exclude distance, kind and variation changes", () => {
   const rows = [
     workout(
