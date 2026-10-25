@@ -1,9 +1,12 @@
 import { TradeCalendar } from "@/components/app/TradeCalendar";
+import { MarketHub, LearningLink } from "@/components/app/MarketHub";
+import { classifyMarketTopic, MARKET_CONTEXT } from "@/lib/market-context";
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ExternalLink,
+  Eye,
   GraduationCap,
   ImagePlus,
   Newspaper,
@@ -47,8 +50,11 @@ import {
   computeBias,
   deleteBacktest,
   deleteRule,
+  deleteMarketInspection,
   deleteTrade,
   durationLabel,
+  addMarketInspection,
+  marketInspectionsQuery,
   saveBias,
   saveTradingPlan,
   tradingPlanQuery,
@@ -68,6 +74,8 @@ import {
 import { addEntry, deleteEntry, tradeLessonsQuery, updateEntry } from "@/lib/journal";
 
 export const Route = createFileRoute("/_authenticated/trade")({
+  validateSearch: (search: Record<string, unknown>): { tab?: "news" } =>
+    search["tab"] === "news" ? { tab: "news" } : {},
   head: () => ({
     meta: [
       { title: "Trade — My Journey" },
@@ -90,10 +98,21 @@ export const Route = createFileRoute("/_authenticated/trade")({
 });
 
 type Tab =
-  "bias" | "log" | "edge" | "cal" | "rules" | "plan" | "backtest" | "lessons" | "news" | "calc";
+  | "bias"
+  | "inspect"
+  | "log"
+  | "edge"
+  | "cal"
+  | "rules"
+  | "plan"
+  | "backtest"
+  | "lessons"
+  | "news"
+  | "calc";
 
 const TAB_TITLES: Record<Tab, string> = {
   bias: "Bias tracker",
+  inspect: "Market inspection",
   log: "Trade log",
   edge: "Edge finder",
   cal: "Trading calendar",
@@ -106,12 +125,19 @@ const TAB_TITLES: Record<Tab, string> = {
 };
 
 function Trade() {
-  const [tab, setTab] = useState<Tab>("bias");
+  const { tab: requestedTab } = Route.useSearch();
+  const [tab, setTab] = useState<Tab>(requestedTab ?? "bias");
+  useEffect(() => {
+    if (requestedTab) setTab(requestedTab);
+  }, [requestedTab]);
   return (
     <AppShell eyebrow="Trading" title={TAB_TITLES[tab]}>
       <div className="flex flex-wrap gap-2">
         <Chip active={tab === "bias"} onClick={() => setTab("bias")} className="flex-1">
           Bias
+        </Chip>
+        <Chip active={tab === "inspect"} onClick={() => setTab("inspect")} className="flex-1">
+          Inspect
         </Chip>
         <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">
           Log
@@ -142,6 +168,7 @@ function Trade() {
         </Chip>
       </div>
       {tab === "bias" && <BiasTab />}
+      {tab === "inspect" && <InspectTab />}
       {tab === "log" && <LogTab />}
       {tab === "edge" && <EdgeTab />}
       {tab === "cal" && <TradeCalendar />}
@@ -149,7 +176,7 @@ function Trade() {
       {tab === "plan" && <PlanTab />}
       {tab === "backtest" && <BacktestTab />}
       {tab === "lessons" && <LessonsTab />}
-      {tab === "news" && <NewsTab />}
+      {tab === "news" && <MarketHub events={<NewsTab />} />}
       {tab === "calc" && <CalcTab />}
     </AppShell>
   );
@@ -382,6 +409,13 @@ function LogTab() {
                   Entry {t.entry_tf}
                 </span>
               )}
+              {t.confirmation && (
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+                  Conf{" "}
+                  {CONFIRMATIONS.find((c) => c.value === t.confirmation)?.label ?? t.confirmation}
+                  {t.confirmation_tf ? ` ${t.confirmation_tf}` : ""}
+                </span>
+              )}
               {Array.isArray(t.trend_context) &&
                 (t.trend_context as TrendCtx[]).map((r, i) => (
                   <span
@@ -461,6 +495,7 @@ function TradeSheet({
     setup: "",
     entry_tf: "",
     confirmation: "",
+    confirmation_tf: "",
     direction: "long",
     source: "live",
     entry: "",
@@ -498,6 +533,7 @@ function TradeSheet({
         setup: trade.setup ?? "",
         entry_tf: trade.entry_tf ?? "",
         confirmation: trade.confirmation ?? "",
+        confirmation_tf: trade.confirmation_tf ?? "",
         direction: trade.direction,
         source: trade.source ?? "live",
         entry: trade.entry != null ? String(trade.entry) : "",
@@ -543,6 +579,7 @@ function TradeSheet({
         setup: "",
         entry_tf: "",
         confirmation: "",
+        confirmation_tf: "",
         direction: "long",
         source: "live",
         entry: "",
@@ -590,6 +627,7 @@ function TradeSheet({
         setup: f.setup || null,
         entry_tf: f.entry_tf || null,
         confirmation: f.confirmation || null,
+        confirmation_tf: f.confirmation_tf || null,
         direction: f.direction,
         source: f.source,
         entry: f.entry ? Number(f.entry) : null,
@@ -770,6 +808,25 @@ function TradeSheet({
             </option>
           ))}
         </SelectInput>
+        <div className="mt-2 grid grid-cols-4 gap-2">
+          <Chip
+            active={f.confirmation_tf === ""}
+            onClick={() => set("confirmation_tf", "")}
+            className="flex-1"
+          >
+            Any TF
+          </Chip>
+          {TIMEFRAMES.map((tf) => (
+            <Chip
+              key={tf}
+              active={f.confirmation_tf === tf}
+              onClick={() => set("confirmation_tf", f.confirmation_tf === tf ? "" : tf)}
+              className="flex-1"
+            >
+              {tf}
+            </Chip>
+          ))}
+        </div>
       </Field>
       <Field label="Direction">
         <div className="flex gap-2">
@@ -1276,6 +1333,247 @@ function LessonsTab() {
         </div>
       </Card>
     </>
+  );
+}
+
+/* ----------------------------- market inspection ---------------------------- */
+
+function InspectTab() {
+  const qc = useQueryClient();
+  const { data: inspections, isPending, isError, refetch } = useQuery(marketInspectionsQuery);
+  const [open, setOpen] = useState(false);
+
+  const remove = useMutation({
+    mutationFn: deleteMarketInspection,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["market_inspections"] }),
+    onError: () => toast.error("Inspection was not deleted. Try again."),
+  });
+
+  return (
+    <>
+      <Card>
+        <SectionTitle>Market inspection</SectionTitle>
+        <p className="mt-1 text-xs font-medium text-muted-foreground">
+          Study the market without needing a trade — what you saw, what you learned, what could
+          improve and what needs investigating next.
+        </p>
+        <div className="mt-3">
+          <PrimaryButton onClick={() => setOpen(true)}>
+            <span className="flex items-center justify-center gap-2">
+              <Eye className="h-5 w-5" /> Inspect the market
+            </span>
+          </PrimaryButton>
+        </div>
+      </Card>
+      {isError ? (
+        <Card>
+          <p role="alert" className="text-sm text-destructive">
+            Inspections could not be loaded. Check the market_inspections migration and connection.
+          </p>
+          <GhostButton onClick={() => refetch()}>Retry inspections</GhostButton>
+        </Card>
+      ) : isPending ? (
+        <Card>
+          <p role="status">Loading inspections…</p>
+        </Card>
+      ) : !inspections?.length ? (
+        <Card>
+          <Empty>No inspections yet — observe first, trade second.</Empty>
+        </Card>
+      ) : (
+        inspections.map((i) => (
+          <Card key={i.id}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-base font-extrabold">{i.pair ?? "Market overall"}</p>
+              <button
+                aria-label="Delete inspection"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Delete this market inspection? Its copied lesson will remain in Lessons.",
+                    )
+                  )
+                    remove.mutate(i.id);
+                }}
+                disabled={remove.isPending}
+                className="text-muted-foreground"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-1 text-xs font-bold text-muted-foreground">{prettyDate(i.date)}</p>
+            {i.market_view && (
+              <p className="mt-2 text-sm font-medium">
+                <span className="font-bold">View: </span>
+                {i.market_view}
+              </p>
+            )}
+            {i.spotted && (
+              <p className="mt-1 text-sm font-medium">
+                <span className="font-bold">Spotted: </span>
+                {i.spotted}
+              </p>
+            )}
+            {i.learnt && (
+              <p className="mt-1 rounded-2xl bg-trading-soft p-2 text-sm font-semibold text-trading">
+                Learnt: {i.learnt}
+              </p>
+            )}
+            {i.improve && (
+              <p className="mt-1 text-sm font-medium">
+                <span className="font-bold">Improve: </span>
+                {i.improve}
+              </p>
+            )}
+            {i.investigate && (
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                <span className="font-bold">Investigate next: </span>
+                {i.investigate}
+              </p>
+            )}
+          </Card>
+        ))
+      )}
+      <InspectSheet open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+function InspectSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const qc = useQueryClient();
+  const [f, setF] = useState({
+    date: todayISO(),
+    pair: "",
+    market_view: "",
+    spotted: "",
+    learnt: "",
+    improve: "",
+    investigate: "",
+  });
+
+  useEffect(() => {
+    if (open)
+      setF({
+        date: todayISO(),
+        pair: "",
+        market_view: "",
+        spotted: "",
+        learnt: "",
+        improve: "",
+        investigate: "",
+      });
+  }, [open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      await addMarketInspection({
+        date: f.date,
+        pair: f.pair.trim() || null,
+        market_view: f.market_view.trim() || null,
+        spotted: f.spotted.trim() || null,
+        learnt: f.learnt.trim() || null,
+        improve: f.improve.trim() || null,
+        investigate: f.investigate.trim() || null,
+      });
+      let lessonFailed = false;
+      if (f.learnt.trim()) {
+        try {
+          await addEntry({
+            text: f.learnt.trim(),
+            pillar: "trading",
+            entry_type: "lesson",
+            is_lesson: true,
+            date: f.date,
+          });
+        } catch {
+          lessonFailed = true;
+        }
+      }
+      return { lessonFailed };
+    },
+    onSuccess: ({ lessonFailed }) => {
+      qc.invalidateQueries({ queryKey: ["market_inspections"] });
+      qc.invalidateQueries({ queryKey: ["lessons"] });
+      qc.invalidateQueries({ queryKey: ["journal"] });
+      if (lessonFailed)
+        toast.warning(
+          "Inspection saved, but the lesson copy failed. Your takeaway is safe in Inspect; copy it to Lessons later.",
+        );
+      else
+        toast.success(f.learnt.trim() ? "Inspection saved and lesson added" : "Inspection saved");
+      onOpenChange(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+
+  return (
+    <FormSheet open={open} onOpenChange={onOpenChange} title="Inspect the market">
+      <Field label="Date">
+        <TextInput
+          type="date"
+          value={f.date}
+          onChange={(e) => setF((s) => ({ ...s, date: e.target.value }))}
+        />
+      </Field>
+      <Field label="Pair (optional)">
+        <TextInput
+          value={f.pair}
+          onChange={(e) => setF((s) => ({ ...s, pair: e.target.value }))}
+          placeholder="Leave blank for the market overall"
+        />
+      </Field>
+      <Field label="My market view">
+        <TextArea
+          value={f.market_view}
+          onChange={(e) => setF((s) => ({ ...s, market_view: e.target.value }))}
+          placeholder="What's the story today — risk-on, ranging, trending?"
+        />
+      </Field>
+      <Field label="What I spotted">
+        <TextArea
+          value={f.spotted}
+          onChange={(e) => setF((s) => ({ ...s, spotted: e.target.value }))}
+          placeholder="Setups forming, levels holding, behaviour you noticed…"
+        />
+      </Field>
+      <Field label="What I learnt (also saved to Lessons)">
+        <TextArea
+          value={f.learnt}
+          onChange={(e) => setF((s) => ({ ...s, learnt: e.target.value }))}
+          placeholder="One clear takeaway…"
+        />
+      </Field>
+      <Field label="What could improve">
+        <TextArea
+          value={f.improve}
+          onChange={(e) => setF((s) => ({ ...s, improve: e.target.value }))}
+          placeholder="Anything that guides towards improvement…"
+        />
+      </Field>
+      <Field label="Investigate next">
+        <TextArea
+          value={f.investigate}
+          onChange={(e) => setF((s) => ({ ...s, investigate: e.target.value }))}
+          placeholder="A question, pattern or behaviour to dig into…"
+        />
+      </Field>
+      <PrimaryButton
+        onClick={() => save.mutate()}
+        disabled={
+          save.isPending ||
+          !f.date ||
+          ![f.market_view, f.spotted, f.learnt, f.improve, f.investigate].some((v) => v.trim())
+        }
+      >
+        Save inspection
+      </PrimaryButton>
+    </FormSheet>
   );
 }
 
@@ -1944,7 +2242,7 @@ async function snapshotNews(dateKey: string): Promise<SavedNews[] | null> {
   try {
     const data = await getNewsEvents();
     const rows = data.map((e) => {
-      const at = newsInstant(e.date, e.time);
+      const at = newsInstant(e.date, e.time, e.instant);
       const [m = "01", d = "01", y = "1970"] = e.date.split("-");
       return { e, at, key: at ? londonDay(at) : `${y}-${m}-${d}` };
     });
@@ -2010,7 +2308,8 @@ function tzOffset(ms: number, tz: string): number {
 }
 
 /** Feed date/time are UTC; returns a UTC instant (or null for all-day). */
-function newsInstant(date: string, time: string): Date | null {
+function newsInstant(date: string, time: string, instant?: string): Date | null {
+  if (instant && Number.isFinite(Date.parse(instant))) return new Date(instant);
   const [m = 1, d = 1, y = 1970] = date.split("-").map(Number);
   const t = time.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
   if (!t) return null;
@@ -2020,9 +2319,9 @@ function newsInstant(date: string, time: string): Date | null {
   return new Date(guess);
 }
 
-const londonDay = (dt: Date) => dt.toLocaleDateString("en-CA");
+const londonDay = (dt: Date) => dt.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
 const londonTime = (dt: Date) =>
-  dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 
 function newsDayLabel(key: string, isToday: boolean): string {
   const [y = 1970, m = 1, d = 1] = key.split("-").map(Number);
@@ -2035,7 +2334,7 @@ function newsDayLabel(key: string, isToday: boolean): string {
 }
 
 function NewsTab() {
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching, dataUpdatedAt } = useQuery({
     queryKey: ["ff-news"],
     queryFn: () => getNewsEvents(),
     staleTime: 1000 * 60 * 30,
@@ -2057,7 +2356,7 @@ function NewsTab() {
   type Ev = NewsEvent & { at: Date | null; uk: string };
   const days = new Map<string, Ev[]>();
   for (const e of data) {
-    const at = newsInstant(e.date, e.time);
+    const at = newsInstant(e.date, e.time, e.instant);
     const [m = "01", d = "01", y = "1970"] = e.date.split("-");
     const key = at ? londonDay(at) : `${y}-${m}-${d}`;
     const list = days.get(key) ?? [];
@@ -2070,7 +2369,7 @@ function NewsTab() {
       <Card className="flex items-center gap-3 !py-3">
         <Newspaper className="h-5 w-5 shrink-0 text-trading" />
         <p className="flex-1 text-xs text-muted-foreground">
-          Red & orange events for EUR · USD · GBP · JPY.
+          Red & orange events for EUR · USD · GBP · JPY. Times shown in London time.
         </p>
         <button
           className="text-xs font-semibold text-trading"
@@ -2080,6 +2379,27 @@ function NewsTab() {
           {isRefetching ? "…" : "Refresh"}
         </button>
       </Card>
+      <p className="px-1 text-xs text-muted-foreground">
+        Calendar loaded{" "}
+        {new Date(dataUpdatedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })} UK time.
+        Provider cache: up to 30 minutes. Ratings and forecasts are third-party estimates.
+      </p>
+      {!data.some((e) => Date.parse(e.instant) > now) && (
+        <Card>
+          <p className="text-sm">
+            This week's feed has no later timed events. That does not mean there are no upcoming
+            risks. Check the provider for next week's schedule.
+          </p>
+          <a
+            href="https://www.forexfactory.com/calendar"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center text-sm font-bold underline underline-offset-4"
+          >
+            Open the full economic calendar
+          </a>
+        </Card>
+      )}
       {days.size === 0 && <Empty>No high or medium impact events this week.</Empty>}
       {[...days.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
@@ -2104,7 +2424,7 @@ function NewsTab() {
                 {events.map((e, i) => (
                   <Card
                     key={`${e.title}-${i}`}
-                    className={`flex items-center gap-3 !py-3 ${isToday && e.at && e.at.getTime() < now ? "opacity-60" : ""}`}
+                    className={`flex flex-wrap items-center gap-3 !py-3 ${isToday && e.at && e.at.getTime() < now ? "opacity-60" : ""}`}
                   >
                     <span
                       className={`h-2.5 w-2.5 shrink-0 rounded-full ${
@@ -2114,7 +2434,8 @@ function NewsTab() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{e.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">{e.uk}</span> · {e.currency}
+                        <span className="font-semibold text-foreground">{e.uk}</span> · {e.currency}{" "}
+                        · {e.impact} impact
                         {e.forecast ? ` · F ${e.forecast}` : ""}
                         {e.previous ? ` · P ${e.previous}` : ""}
                       </p>
@@ -2130,6 +2451,15 @@ function NewsTab() {
                         <ExternalLink className="h-4 w-4" />
                       </a>
                     )}
+                    <details className="basis-full text-xs">
+                      <summary className="cursor-pointer font-bold">
+                        Understand this release
+                      </summary>
+                      <p className="mt-2">{MARKET_CONTEXT[classifyMarketTopic(e.title)].summary}</p>
+                      <LearningLink lesson={MARKET_CONTEXT[classifyMarketTopic(e.title)].lesson}>
+                        Open related lesson
+                      </LearningLink>
+                    </details>
                   </Card>
                 ))}
               </div>
