@@ -7,6 +7,9 @@ import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, Stat, TextArea, TextInput } from "@/components/app/ui";
 import { RoutinePlayer } from "@/components/app/RoutinePlayer";
 import { LittleWins } from "@/components/app/LittleWins";
+import { FitnessHub } from "@/components/app/FitnessHub";
+import { FitnessRecords } from "@/components/app/FitnessRecords";
+import { SessionComposer } from "@/components/app/FitnessSession";
 import { prettyDate, todayISO } from "@/lib/dates";
 import { WORKOUT_KINDS, addWorkout, deleteWorkout, liftSummary, setsQuery, uploadWorkoutMedia, workoutsQuery, type LiftRow } from "@/lib/train";
 import { addRoutine, addStep, deleteRoutine, deleteStep, logRoutine, routineLogsQuery, routinesQuery, totalSeconds, updateStep, type Routine } from "@/lib/routines";
@@ -28,24 +31,10 @@ export const Route = createFileRoute("/_authenticated/train")({
   component: Train,
 });
 
-type Tab = "sessions" | "routines" | "lifts" | "body";
-
-const TITLES: Record<Tab, string> = { sessions: "Training", routines: "Routines", lifts: "Lift search", body: "Body" };
-
 function Train() {
-  const [tab, setTab] = useState<Tab>("sessions");
   return (
-    <AppShell eyebrow="Fitness" title={TITLES[tab]}>
-      <div className="flex gap-2">
-        <Chip active={tab === "sessions"} onClick={() => setTab("sessions")} className="flex-1">Sessions</Chip>
-        <Chip active={tab === "routines"} onClick={() => setTab("routines")} className="flex-1">Routines</Chip>
-        <Chip active={tab === "lifts"} onClick={() => setTab("lifts")} className="flex-1">Lifts</Chip>
-        <Chip active={tab === "body"} onClick={() => setTab("body")} className="flex-1">Body</Chip>
-      </div>
-      {tab === "sessions" && <Sessions />}
-      {tab === "routines" && <><LittleWins only="fitness" /><Routines /></>}
-      {tab === "lifts" && <Lifts />}
-      {tab === "body" && <Body />}
+    <AppShell eyebrow="Fitness" title="Training">
+      <FitnessHub routines={<><LittleWins only="fitness" /><Routines /></>} records={<FitnessRecords />} body={<Body />} />
     </AppShell>
   );
 }
@@ -55,6 +44,7 @@ function Routines() {
   const { data: routines } = useQuery(routinesQuery);
   const { data: logs } = useQuery(routineLogsQuery);
   const [playing, setPlaying] = useState<Routine | null>(null);
+  const [completed, setCompleted] = useState<Routine | null>(null);
   const [editing, setEditing] = useState<Routine | null>(null);
   const [building, setBuilding] = useState(false);
 
@@ -134,9 +124,10 @@ function Routines() {
         <RoutinePlayer
           routine={playing}
           onClose={() => setPlaying(null)}
-          onComplete={(seconds) => log.mutate({ id: playing.id, name: playing.name, seconds })}
+          onComplete={() => { setCompleted(playing); setPlaying(null); }}
         />
       )}
+      {completed && <SessionComposer routineId={completed.id} initialSlot="recovery" movement={{ name: completed.name, kind: completed.kind }} onClose={() => setCompleted(null)} />}
       {editing && <RoutineEditor routine={editing} onClose={() => setEditing(null)} />}
       <RoutineBuilder open={building} onOpenChange={setBuilding} />
     </>
@@ -242,7 +233,7 @@ function RoutineBuilder({ open, onOpenChange }: { open: boolean; onOpenChange: (
   );
 }
 
-function Sessions() {
+export function Sessions() {
   const qc = useQueryClient();
   const { data: workouts } = useQuery(workoutsQuery);
   const [open, setOpen] = useState(false);
@@ -513,7 +504,7 @@ function Body() {
         <SectionTitle>Weight</SectionTitle>
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Stat label={`Latest (${profile?.units ?? "kg"})`} value={latest ? Number(latest.weight) : "—"} />
-          <Stat label="Change" value={`${change > 0 ? "+" : ""}${change}`} tone={change >= 0 ? "text-fitness" : "text-trading"} />
+          <Stat label="Change" value={`${change > 0 ? "+" : ""}${change}`} />
         </div>
         <p className="mt-3 text-sm font-medium text-muted-foreground">Log your weight in the evening check-in on Today.</p>
       </Card>

@@ -2,6 +2,9 @@ import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { uid } from "./day";
 import type { Pillar } from "./pillars";
+import type { GoalTracking } from "./fitness-types";
+import type { Json } from "@/integrations/supabase/types";
+import { goalValue, loadFitnessHistory, object } from "./fitness";
 
 export type Horizon = "vision" | "monthly" | "weekly";
 
@@ -21,7 +24,21 @@ export const goalsQuery = queryOptions({
       .select("*")
       .order("created_at", { ascending: true });
     if (error) throw error;
-    return data;
+    const tracked = data.filter(
+      (g) => object(g.tracking)["mode"] && object(g.tracking)["mode"] !== "manual",
+    );
+    if (!tracked.length) return data;
+    const history = await loadFitnessHistory();
+    const { data: plans, error: planError } = await supabase.from("fitness_plans").select("*");
+    if (planError) throw planError;
+    return data.map((g) =>
+      tracked.some((t) => t.id === g.id)
+        ? {
+            ...g,
+            current_value: goalValue(object(g.tracking) as Partial<GoalTracking>, history, plans),
+          }
+        : g,
+    );
   },
 });
 
@@ -33,14 +50,23 @@ export async function addGoal(input: {
   target_value: number | null;
   deadline: string | null;
   parent_id: string | null;
+  tracking?: GoalTracking;
 }) {
   const user = await uid();
-  const { error } = await supabase.from("goals").insert({ ...input, user_id: user });
+  const { tracking, ...rest } = input;
+  const { error } = await supabase.from("goals").insert({
+    ...rest,
+    ...(tracking ? { tracking: tracking as unknown as Json } : {}),
+    user_id: user,
+  });
   if (error) throw error;
 }
 
 export async function bumpGoal(id: string, current: number, by: number) {
-  const { error } = await supabase.from("goals").update({ current_value: Math.max(0, current + by) }).eq("id", id);
+  const { error } = await supabase
+    .from("goals")
+    .update({ current_value: Math.max(0, current + by) })
+    .eq("id", id);
   if (error) throw error;
 }
 

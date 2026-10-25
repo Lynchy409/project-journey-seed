@@ -21,6 +21,7 @@ import {
   type DayType,
 } from "@/lib/day";
 import { HORIZONS, WEEKLY_LIMIT, addGoal, bumpGoal, deleteGoal, goalsQuery, progressPct, setGoalStatus, type Horizon } from "@/lib/goals";
+import { FitnessGoals } from "@/components/app/FitnessGoals";
 
 export const Route = createFileRoute("/_authenticated/plan")({
   head: () => ({
@@ -286,6 +287,9 @@ function ShiftSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (v: b
 /* --------------------------------- goals ---------------------------------- */
 
 function GoalsTab() {
+  return <><Link to="/review" className="inline-flex min-h-11 items-center text-sm font-bold underline">Weekly review</Link><FitnessGoals allSections /></>;
+}
+function LegacyGoalsTab() {
   const qc = useQueryClient();
   const { data: goals } = useQuery(goalsQuery);
   const [open, setOpen] = useState(false);

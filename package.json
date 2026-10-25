@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test:market": "tsx --test tests/market.test.ts"
+    "test:market": "tsx --test tests/market.test.ts",
+    "test:fitness": "tsx --test tests/fitness.test.ts && node --test tests/fitness-sql.test.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"
@@ -76,6 +77,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "@eslint/js": "^9.32.0",
     "@lovable.dev/vite-tanstack-config": "2.26.5",
     "@types/node": "^22.16.5",

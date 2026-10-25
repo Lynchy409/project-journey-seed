@@ -10,20 +10,20 @@ const DEFAULTS: { name: string; kind: string; description: string; steps: { name
   {
     name: "Wrist Routine",
     kind: "mobility",
-    description: "Joint decompression and forearm resilience for lifting and desk sessions.",
+    description: "Editable wrist-movement timer. Review the movements and choose comfortable ranges before using.",
     steps: [
       { name: "Tabletop palm pulses", cue: "Hands flat, fingers forward. Rock slowly forward and back over the wrist crease.", seconds: 40 },
       { name: "Reverse palm rock", cue: "Palms down, fingers pointing back at your knees. Sit the hips back gently.", seconds: 40 },
       { name: "Dorsal wrist roll", cue: "Backs of the hands down, fingers facing each other. Slowly make soft fists.", seconds: 40 },
       { name: "First knuckle lifts", cue: "Fingertips planted, lift the palms like a push-up for the hands.", seconds: 30 },
-      { name: "Finger flicks & spider curls", cue: "Fast open and close to pump blood through the carpal tunnel.", seconds: 30 },
+      { name: "Finger flicks & spider curls", cue: "Open and close the hands gently in a comfortable range.", seconds: 30 },
       { name: "Wrist CARs", cue: "Closed fists. Draw the biggest slowest circles you can without turning the forearms.", seconds: 45 },
     ],
   },
   {
     name: "Face Routine",
     kind: "recovery",
-    description: "Jaw release and lymphatic drainage. Great first thing or after training.",
+    description: "Custom gentle face-massage timer. No lymphatic, medical or recovery-rate benefit is asserted.",
     steps: [
       { name: "Masseter knuckle knead", cue: "Small upward circles with the knuckles along the jawline into the cheek muscle.", seconds: 30 },
       { name: "Under-chin thumb slide", cue: "Thumbs under the chin, glide along the jawbone back towards the ears.", seconds: 30 },

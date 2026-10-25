@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Bar, Field, PrimaryButton, SectionTitle, TextArea, TextInput, Chip } from "@/components/app/ui";
 import { PILLARS, type Pillar } from "@/lib/pillars";
 import { goalsQuery, progressPct, setGoalValue, addGoal, WEEKLY_LIMIT } from "@/lib/goals";
+import { object } from "@/lib/fitness";
 import { addEntry } from "@/lib/journal";
 import { iso, weekDates, prettyDate } from "@/lib/dates";
 import { dayEntriesQuery, DAY_TYPES, shiftTypesQuery } from "@/lib/day";
@@ -123,12 +124,15 @@ function Review() {
                       <div className="mt-3 flex items-center gap-2">
                         <TextInput
                           inputMode="decimal"
+                          aria-label={`${g.title} current progress`}
+                          disabled={!!object(g.tracking)["mode"] && object(g.tracking)["mode"] !== "manual"}
                           defaultValue={String(cur)}
                           onBlur={(e) => update.mutate({ id: g.id, value: Number(e.target.value || 0) })}
                           className="flex-1"
                         />
                         <span className="text-sm font-bold text-muted-foreground">{tgt !== null ? `of ${tgt}` : ""}</span>
                       </div>
+                      {!!object(g.tracking)["mode"] && object(g.tracking)["mode"] !== "manual" && <p className="mt-2 text-xs text-muted-foreground">Calculated from training history. Edit its tracking settings in Plan.</p>}
                     </li>
                   );
                 })}
