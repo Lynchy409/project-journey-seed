@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      backtests: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          market: string | null
+          period_end: string | null
+          period_start: string | null
+          question: string
+          results: string | null
+          rules: string | null
+          timeframe: string | null
+          updated_at: string
+          user_id: string
+          verdict: string | null
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          market?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          question: string
+          results?: string | null
+          rules?: string | null
+          timeframe?: string | null
+          updated_at?: string
+          user_id: string
+          verdict?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          market?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          question?: string
+          results?: string | null
+          rules?: string | null
+          timeframe?: string | null
+          updated_at?: string
+          user_id?: string
+          verdict?: string | null
+        }
+        Relationships: []
+      }
       bias_snapshots: {
         Row: {
           created_at: string
@@ -453,6 +501,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      learning_progress: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       little_wins: {
         Row: {
@@ -972,65 +1047,146 @@ export type Database = {
       }
       trades: {
         Row: {
+          confirmation: string | null
           created_at: string
           date: string
           direction: string
           emotions: string | null
           entry: number | null
+          entry_tf: string | null
+          exit_time: string | null
+          external_lesson: string | null
+          further_levels: Json | null
+          htf_confluences: Json | null
           id: string
+          market_did: string | null
+          market_feeling: string | null
           news_events: Json | null
           notes: string | null
           outcome: string
           pair: string
+          pair_feeling: string | null
           result_r: number | null
           rr: number | null
           screenshot_url: string | null
+          setup: string | null
+          source: string
           stop: number | null
           strategy: string
           target: number | null
           time_of_trade: string | null
+          trend_context: Json | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          confirmation?: string | null
           created_at?: string
           date?: string
           direction?: string
           emotions?: string | null
           entry?: number | null
+          entry_tf?: string | null
+          exit_time?: string | null
+          external_lesson?: string | null
+          further_levels?: Json | null
+          htf_confluences?: Json | null
           id?: string
+          market_did?: string | null
+          market_feeling?: string | null
           news_events?: Json | null
           notes?: string | null
           outcome?: string
           pair: string
+          pair_feeling?: string | null
           result_r?: number | null
           rr?: number | null
           screenshot_url?: string | null
+          setup?: string | null
+          source?: string
           stop?: number | null
           strategy?: string
           target?: number | null
           time_of_trade?: string | null
+          trend_context?: Json | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          confirmation?: string | null
           created_at?: string
           date?: string
           direction?: string
           emotions?: string | null
           entry?: number | null
+          entry_tf?: string | null
+          exit_time?: string | null
+          external_lesson?: string | null
+          further_levels?: Json | null
+          htf_confluences?: Json | null
           id?: string
+          market_did?: string | null
+          market_feeling?: string | null
           news_events?: Json | null
           notes?: string | null
           outcome?: string
           pair?: string
+          pair_feeling?: string | null
           result_r?: number | null
           rr?: number | null
           screenshot_url?: string | null
+          setup?: string | null
+          source?: string
           stop?: number | null
           strategy?: string
           target?: number | null
           time_of_trade?: string | null
+          trend_context?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trading_plans: {
+        Row: {
+          account_currency: string | null
+          account_size: number | null
+          allowed_strategies: string | null
+          created_at: string
+          id: string
+          max_daily_loss: string | null
+          medium_term_goal: string | null
+          risk_per_trade: string | null
+          routines: string | null
+          short_term_goal: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_currency?: string | null
+          account_size?: number | null
+          allowed_strategies?: string | null
+          created_at?: string
+          id?: string
+          max_daily_loss?: string | null
+          medium_term_goal?: string | null
+          risk_per_trade?: string | null
+          routines?: string | null
+          short_term_goal?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_currency?: string | null
+          account_size?: number | null
+          allowed_strategies?: string | null
+          created_at?: string
+          id?: string
+          max_daily_loss?: string | null
+          medium_term_goal?: string | null
+          risk_per_trade?: string | null
+          routines?: string | null
+          short_term_goal?: string | null
           updated_at?: string
           user_id?: string
         }
