@@ -1,4 +1,6 @@
 import { TradeCalendar } from "@/components/app/TradeCalendar";
+import { MarketHub, LearningLink } from "@/components/app/MarketHub";
+import { classifyMarketTopic, MARKET_CONTEXT } from "@/lib/market-context";
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +74,8 @@ import {
 import { addEntry, deleteEntry, tradeLessonsQuery, updateEntry } from "@/lib/journal";
 
 export const Route = createFileRoute("/_authenticated/trade")({
+  validateSearch: (search: Record<string, unknown>): { tab?: "news" } =>
+    search["tab"] === "news" ? { tab: "news" } : {},
   head: () => ({
     meta: [
       { title: "Trade — My Journey" },
@@ -121,7 +125,11 @@ const TAB_TITLES: Record<Tab, string> = {
 };
 
 function Trade() {
-  const [tab, setTab] = useState<Tab>("bias");
+  const { tab: requestedTab } = Route.useSearch();
+  const [tab, setTab] = useState<Tab>(requestedTab ?? "bias");
+  useEffect(() => {
+    if (requestedTab) setTab(requestedTab);
+  }, [requestedTab]);
   return (
     <AppShell eyebrow="Trading" title={TAB_TITLES[tab]}>
       <div className="flex flex-wrap gap-2">
@@ -168,7 +176,7 @@ function Trade() {
       {tab === "plan" && <PlanTab />}
       {tab === "backtest" && <BacktestTab />}
       {tab === "lessons" && <LessonsTab />}
-      {tab === "news" && <NewsTab />}
+      {tab === "news" && <MarketHub events={<NewsTab />} />}
       {tab === "calc" && <CalcTab />}
     </AppShell>
   );
@@ -1332,12 +1340,13 @@ function LessonsTab() {
 
 function InspectTab() {
   const qc = useQueryClient();
-  const { data: inspections } = useQuery(marketInspectionsQuery);
+  const { data: inspections, isPending, isError, refetch } = useQuery(marketInspectionsQuery);
   const [open, setOpen] = useState(false);
 
   const remove = useMutation({
     mutationFn: deleteMarketInspection,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["market_inspections"] }),
+    onError: () => toast.error("Inspection was not deleted. Try again."),
   });
 
   return (
@@ -1356,7 +1365,18 @@ function InspectTab() {
           </PrimaryButton>
         </div>
       </Card>
-      {!inspections?.length ? (
+      {isError ? (
+        <Card>
+          <p role="alert" className="text-sm text-destructive">
+            Inspections could not be loaded. Check the market_inspections migration and connection.
+          </p>
+          <GhostButton onClick={() => refetch()}>Retry inspections</GhostButton>
+        </Card>
+      ) : isPending ? (
+        <Card>
+          <p role="status">Loading inspections…</p>
+        </Card>
+      ) : !inspections?.length ? (
         <Card>
           <Empty>No inspections yet — observe first, trade second.</Empty>
         </Card>
@@ -1367,7 +1387,15 @@ function InspectTab() {
               <p className="text-base font-extrabold">{i.pair ?? "Market overall"}</p>
               <button
                 aria-label="Delete inspection"
-                onClick={() => remove.mutate(i.id)}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Delete this market inspection? Its copied lesson will remain in Lessons.",
+                    )
+                  )
+                    remove.mutate(i.id);
+                }}
+                disabled={remove.isPending}
                 className="text-muted-foreground"
               >
                 <Trash2 className="h-4 w-4" />
@@ -1453,20 +1481,32 @@ function InspectSheet({
         improve: f.improve.trim() || null,
         investigate: f.investigate.trim() || null,
       });
+      let lessonFailed = false;
       if (f.learnt.trim()) {
-        await addEntry({
-          text: f.learnt.trim(),
-          pillar: "trading",
-          entry_type: "lesson",
-          is_lesson: true,
-          date: f.date,
-        });
+        try {
+          await addEntry({
+            text: f.learnt.trim(),
+            pillar: "trading",
+            entry_type: "lesson",
+            is_lesson: true,
+            date: f.date,
+          });
+        } catch {
+          lessonFailed = true;
+        }
       }
+      return { lessonFailed };
     },
-    onSuccess: () => {
+    onSuccess: ({ lessonFailed }) => {
       qc.invalidateQueries({ queryKey: ["market_inspections"] });
       qc.invalidateQueries({ queryKey: ["lessons"] });
-      toast.success(f.learnt.trim() ? "Inspection saved and lesson added" : "Inspection saved");
+      qc.invalidateQueries({ queryKey: ["journal"] });
+      if (lessonFailed)
+        toast.warning(
+          "Inspection saved, but the lesson copy failed. Your takeaway is safe in Inspect; copy it to Lessons later.",
+        );
+      else
+        toast.success(f.learnt.trim() ? "Inspection saved and lesson added" : "Inspection saved");
       onOpenChange(false);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
@@ -1523,7 +1563,14 @@ function InspectSheet({
           placeholder="A question, pattern or behaviour to dig into…"
         />
       </Field>
-      <PrimaryButton onClick={() => save.mutate()} disabled={save.isPending}>
+      <PrimaryButton
+        onClick={() => save.mutate()}
+        disabled={
+          save.isPending ||
+          !f.date ||
+          ![f.market_view, f.spotted, f.learnt, f.improve, f.investigate].some((v) => v.trim())
+        }
+      >
         Save inspection
       </PrimaryButton>
     </FormSheet>
@@ -2195,7 +2242,7 @@ async function snapshotNews(dateKey: string): Promise<SavedNews[] | null> {
   try {
     const data = await getNewsEvents();
     const rows = data.map((e) => {
-      const at = newsInstant(e.date, e.time);
+      const at = newsInstant(e.date, e.time, e.instant);
       const [m = "01", d = "01", y = "1970"] = e.date.split("-");
       return { e, at, key: at ? londonDay(at) : `${y}-${m}-${d}` };
     });
@@ -2261,7 +2308,8 @@ function tzOffset(ms: number, tz: string): number {
 }
 
 /** Feed date/time are UTC; returns a UTC instant (or null for all-day). */
-function newsInstant(date: string, time: string): Date | null {
+function newsInstant(date: string, time: string, instant?: string): Date | null {
+  if (instant && Number.isFinite(Date.parse(instant))) return new Date(instant);
   const [m = 1, d = 1, y = 1970] = date.split("-").map(Number);
   const t = time.match(/^(\d{1,2}):(\d{2})(am|pm)$/i);
   if (!t) return null;
@@ -2271,9 +2319,9 @@ function newsInstant(date: string, time: string): Date | null {
   return new Date(guess);
 }
 
-const londonDay = (dt: Date) => dt.toLocaleDateString("en-CA");
+const londonDay = (dt: Date) => dt.toLocaleDateString("en-CA", { timeZone: "Europe/London" });
 const londonTime = (dt: Date) =>
-  dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  dt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 
 function newsDayLabel(key: string, isToday: boolean): string {
   const [y = 1970, m = 1, d = 1] = key.split("-").map(Number);
@@ -2286,7 +2334,7 @@ function newsDayLabel(key: string, isToday: boolean): string {
 }
 
 function NewsTab() {
-  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+  const { data, isLoading, isError, refetch, isRefetching, dataUpdatedAt } = useQuery({
     queryKey: ["ff-news"],
     queryFn: () => getNewsEvents(),
     staleTime: 1000 * 60 * 30,
@@ -2308,7 +2356,7 @@ function NewsTab() {
   type Ev = NewsEvent & { at: Date | null; uk: string };
   const days = new Map<string, Ev[]>();
   for (const e of data) {
-    const at = newsInstant(e.date, e.time);
+    const at = newsInstant(e.date, e.time, e.instant);
     const [m = "01", d = "01", y = "1970"] = e.date.split("-");
     const key = at ? londonDay(at) : `${y}-${m}-${d}`;
     const list = days.get(key) ?? [];
@@ -2321,7 +2369,7 @@ function NewsTab() {
       <Card className="flex items-center gap-3 !py-3">
         <Newspaper className="h-5 w-5 shrink-0 text-trading" />
         <p className="flex-1 text-xs text-muted-foreground">
-          Red & orange events for EUR · USD · GBP · JPY.
+          Red & orange events for EUR · USD · GBP · JPY. Times shown in London time.
         </p>
         <button
           className="text-xs font-semibold text-trading"
@@ -2331,6 +2379,27 @@ function NewsTab() {
           {isRefetching ? "…" : "Refresh"}
         </button>
       </Card>
+      <p className="px-1 text-xs text-muted-foreground">
+        Calendar loaded{" "}
+        {new Date(dataUpdatedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })} UK time.
+        Provider cache: up to 30 minutes. Ratings and forecasts are third-party estimates.
+      </p>
+      {!data.some((e) => Date.parse(e.instant) > now) && (
+        <Card>
+          <p className="text-sm">
+            This week's feed has no later timed events. That does not mean there are no upcoming
+            risks. Check the provider for next week's schedule.
+          </p>
+          <a
+            href="https://www.forexfactory.com/calendar"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center text-sm font-bold underline underline-offset-4"
+          >
+            Open the full economic calendar
+          </a>
+        </Card>
+      )}
       {days.size === 0 && <Empty>No high or medium impact events this week.</Empty>}
       {[...days.entries()]
         .sort(([a], [b]) => a.localeCompare(b))
@@ -2355,7 +2424,7 @@ function NewsTab() {
                 {events.map((e, i) => (
                   <Card
                     key={`${e.title}-${i}`}
-                    className={`flex items-center gap-3 !py-3 ${isToday && e.at && e.at.getTime() < now ? "opacity-60" : ""}`}
+                    className={`flex flex-wrap items-center gap-3 !py-3 ${isToday && e.at && e.at.getTime() < now ? "opacity-60" : ""}`}
                   >
                     <span
                       className={`h-2.5 w-2.5 shrink-0 rounded-full ${
@@ -2365,7 +2434,8 @@ function NewsTab() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold">{e.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        <span className="font-semibold text-foreground">{e.uk}</span> · {e.currency}
+                        <span className="font-semibold text-foreground">{e.uk}</span> · {e.currency}{" "}
+                        · {e.impact} impact
                         {e.forecast ? ` · F ${e.forecast}` : ""}
                         {e.previous ? ` · P ${e.previous}` : ""}
                       </p>
@@ -2381,6 +2451,15 @@ function NewsTab() {
                         <ExternalLink className="h-4 w-4" />
                       </a>
                     )}
+                    <details className="basis-full text-xs">
+                      <summary className="cursor-pointer font-bold">
+                        Understand this release
+                      </summary>
+                      <p className="mt-2">{MARKET_CONTEXT[classifyMarketTopic(e.title)].summary}</p>
+                      <LearningLink lesson={MARKET_CONTEXT[classifyMarketTopic(e.title)].lesson}>
+                        Open related lesson
+                      </LearningLink>
+                    </details>
                   </Card>
                 ))}
               </div>

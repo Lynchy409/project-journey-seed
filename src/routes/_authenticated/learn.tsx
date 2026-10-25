@@ -54,6 +54,8 @@ import {
 } from "@/lib/curriculum";
 
 export const Route = createFileRoute("/_authenticated/learn")({
+  validateSearch: (search: Record<string, unknown>): { lesson?: string } =>
+    typeof search["lesson"] === "string" ? { lesson: search["lesson"].slice(0, 80) } : {},
   head: () => ({
     meta: [
       { title: "Learn — My Journey" },
@@ -85,22 +87,26 @@ const TITLES: Record<Tab, string> = {
 
 function Learn() {
   const [tab, setTab] = useState<Tab>("market");
+  const { lesson: requestedLesson } = Route.useSearch();
+  useEffect(() => {
+    if (requestedLesson) setTab("market");
+  }, [requestedLesson]);
   return (
     <AppShell eyebrow="Learning" title={TITLES[tab]}>
-      <div className="flex gap-2">
-        <Chip active={tab === "market"} onClick={() => setTab("market")} className="flex-1">
+      <div className="grid grid-cols-5 gap-1 [&>button]:min-h-11">
+        <Chip active={tab === "market"} onClick={() => setTab("market")} className="min-w-0 !px-1">
           Market
         </Chip>
-        <Chip active={tab === "focus"} onClick={() => setTab("focus")} className="flex-1">
+        <Chip active={tab === "focus"} onClick={() => setTab("focus")} className="min-w-0 !px-1">
           Focus
         </Chip>
-        <Chip active={tab === "games"} onClick={() => setTab("games")} className="flex-1">
+        <Chip active={tab === "games"} onClick={() => setTab("games")} className="min-w-0 !px-1">
           Games
         </Chip>
-        <Chip active={tab === "cards"} onClick={() => setTab("cards")} className="flex-1">
+        <Chip active={tab === "cards"} onClick={() => setTab("cards")} className="min-w-0 !px-1">
           Cards
         </Chip>
-        <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">
+        <Chip active={tab === "log"} onClick={() => setTab("log")} className="min-w-0 !px-1">
           Log
         </Chip>
       </div>
@@ -117,10 +123,21 @@ function Learn() {
 
 function Market() {
   const qc = useQueryClient();
-  const { data: progress } = useQuery(progressQuery);
+  const progressState = useQuery(progressQuery);
+  const { data: progress } = progressState;
+  const { lesson: requestedLesson } = Route.useSearch();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [term, setTerm] = useState<Term | null>(null);
   const [showAnswer, setShowAnswer] = useState(false);
+
+  useEffect(() => {
+    if (!requestedLesson) return;
+    const found = MODULES.flatMap((m) => m.lessons).find((l) => l.id === requestedLesson);
+    const foundTerm = TERMS.find((t) => t.id === requestedLesson);
+    setLesson(found ?? null);
+    setTerm(foundTerm ?? null);
+    setShowAnswer(false);
+  }, [requestedLesson]);
 
   const statusOf = (id: string) => progress?.find((p) => p.item_id === id)?.status ?? "todo";
   const done = MODULES.reduce(
@@ -137,6 +154,10 @@ function Market() {
       qc.invalidateQueries({ queryKey: ["learning_progress"] });
       toast.success("Progress saved");
     },
+    onError: () =>
+      toast.error(
+        "Progress was not saved. Check the connection or database setup, then try again.",
+      ),
   });
 
   const openItem = (l: Lesson | null, t: Term | null) => {
@@ -147,6 +168,25 @@ function Market() {
 
   return (
     <>
+      {progressState.isError && (
+        <Card>
+          <p role="alert" className="text-sm font-semibold text-destructive">
+            Learning progress is unavailable. You can read every lesson, but progress cannot be
+            loaded or saved until the database connection and learning_progress migration are ready.
+            Displayed counts are not your confirmed saved progress.
+          </p>
+          <GhostButton onClick={() => progressState.refetch()}>
+            Retry progress connection
+          </GhostButton>
+        </Card>
+      )}
+      {requestedLesson &&
+        !MODULES.flatMap((m) => m.lessons).some((l) => l.id === requestedLesson) &&
+        !TERMS.some((t) => t.id === requestedLesson) && (
+          <Card>
+            <p role="alert">That lesson could not be found. Choose a lesson below.</p>
+          </Card>
+        )}
       <Card>
         <SectionTitle>Market knowledge</SectionTitle>
         <p className="mt-1 text-xs font-medium text-muted-foreground">
@@ -164,6 +204,13 @@ function Market() {
         <div className="mt-3">
           <Bar pct={total ? (done / total) * 100 : 0} className="bg-learning" />
         </div>
+        <Link
+          to="/trade"
+          search={{ tab: "news" }}
+          className="mt-3 inline-flex min-h-11 items-center text-sm font-bold text-trading underline underline-offset-4"
+        >
+          Open market news, events and perspectives
+        </Link>
       </Card>
 
       {(() => {
@@ -213,6 +260,26 @@ function Market() {
           <p className="mt-3 text-sm font-medium leading-relaxed">
             {lesson ? lesson.content : `${term!.definition} Example: ${term!.example}`}
           </p>
+          {lesson?.id.startsWith("m3") && (
+            <a
+              href="https://www.federalreserve.gov/monetarypolicy.htm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex min-h-11 items-center text-xs font-bold underline underline-offset-4"
+            >
+              Primary reading: Federal Reserve policy background
+            </a>
+          )}
+          {lesson?.id === "m1l5" && (
+            <a
+              href="https://www.fca.org.uk/firms/contract-for-differences"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex min-h-11 items-center text-xs font-bold underline underline-offset-4"
+            >
+              Risk reading: FCA leveraged trading guidance
+            </a>
+          )}
           <div className="mt-3 rounded-2xl bg-secondary p-3">
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Check yourself
@@ -231,12 +298,14 @@ function Market() {
           <div className="mt-3 flex gap-2">
             <GhostButton
               onClick={() => mark.mutate({ id: lesson ? lesson.id : term!.id, status: "learning" })}
+              disabled={progressState.isPending || progressState.isError || mark.isPending}
               className="flex-1"
             >
               Still learning
             </GhostButton>
             <PrimaryButton
               onClick={() => mark.mutate({ id: lesson ? lesson.id : term!.id, status: "learned" })}
+              disabled={progressState.isPending || progressState.isError || mark.isPending}
               className="flex-1"
             >
               Learned it

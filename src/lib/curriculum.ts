@@ -64,18 +64,19 @@ export const MODULES: Module[] = [
         id: "m1l5",
         title: "Leverage and margin",
         content:
-          "Leverage lets you control a position larger than your deposit. 1:30 leverage means £1,000 of margin controls £30,000 of currency. Margin is the deposit locked to hold the position. Leverage does not increase your risk by itself — position size does. 1:30 leverage with a tight stop can be safer than 1:5 with a wide one. Used badly, leverage turns a normal loss into an account-ending one.",
-        question: "Does higher leverage automatically mean more risk?",
+          "Leverage lets you control a position larger than your margin deposit. In a simplified 30:1 example, £1,000 of margin supports £30,000 of exposure. A small adverse move can therefore consume a large part of that margin. Risk depends on exposure, price movement, execution and account protections, not just a chosen stop distance. Stops may slip and margin close-out rules may apply. Check your broker's contract and do not mistake a lower margin requirement for permission to increase size.",
+        question: "Why can a small move cause a large loss on a leveraged position?",
         answer:
-          "No. Risk comes from position size and stop distance. Leverage only sets how much margin is required.",
+          "Your exposure is larger than the margin deposit, so a small percentage move in the position can be a large percentage of your deposited margin. Stops and broker protections have limits.",
       },
       {
         id: "m1l6",
         title: "Slippage, swaps and rollover",
         content:
-          "Slippage is the difference between the price you clicked and the price you got — common on news and thin liquidity. Swaps (rollover) are interest paid or earned for holding a position overnight, based on the interest-rate difference between the two currencies. Rollover happens at 5pm New York, when spreads also widen. If you hold trades for days, swaps matter; if you day trade, they mostly do not.",
+          "Slippage is the difference between the expected execution price and the price received. Overnight financing or rollover charges can apply when a position crosses a broker's cut-off. They depend on the product, broker, direction, day and funding terms; do not infer your charge from central-bank rates alone. Check the broker's actual cut-off and cost schedule, including multi-day charges and any commission.",
         question: "What is a swap in forex?",
-        answer: "The overnight interest paid or earned for holding a position past 5pm New York.",
+        answer:
+          "An overnight financing debit or credit under your broker's product terms. Check the actual cut-off, direction and charging schedule.",
       },
     ],
   },
@@ -130,34 +131,37 @@ export const MODULES: Module[] = [
         id: "m3l1",
         title: "Central banks and interest rates",
         content:
-          "The single biggest driver of a currency's value is its interest-rate path. Higher rates attract capital; expectations of cuts repel it. The Bank of England, Fed, ECB and BOJ set rates at scheduled meetings — and their tone matters as much as the decision. 'Hawkish' means leaning towards tighter policy; 'dovish' the opposite.",
+          "Central-bank decisions and expectations about future policy can influence currencies. Compare the announcement with what markets expected, the bank's explanation and developments affecting the other currency. Higher rates do not guarantee appreciation, and a cut does not guarantee depreciation. 'Hawkish' generally means leaning toward tighter policy; 'dovish' means leaning toward easier policy.",
         question: "What usually happens to a currency when its central bank signals higher rates?",
-        answer: "It tends to strengthen, as higher rates attract capital.",
+        answer:
+          "A tighter-than-expected signal can support a currency, but the response depends on expectations and the wider context. It is not a guaranteed direction.",
       },
       {
         id: "m3l2",
         title: "Inflation data: CPI and friends",
         content:
-          "Inflation reports (CPI) move markets because they steer central bank decisions. Employment data (NFP in the US) does the same. GDP, retail sales and PMI surveys add context. High-impact releases are marked red on the economic calendar — the app's News tab pulls exactly these. Trading through a red release is a volatility decision, not a skill decision.",
+          "Inflation, employment and growth releases can change expectations about monetary policy and the economy. Their effect depends on the surprise, revisions, context and the other currency in the pair; a strong number does not guarantee a particular currency move. In Trade > News > Events, check impact, forecast, previous reading and release time. Confirm important details with the issuer and plan risk before the release.",
         question: "Why does CPI move currencies so much?",
         answer:
-          "Inflation steers central bank rate decisions, and rate expectations drive currency value.",
+          "An inflation surprise can change policy expectations. The price reaction still depends on what was expected and the wider context.",
       },
       {
         id: "m3l3",
         title: "Correlations and the dollar",
         content:
-          "The US dollar is on one side of roughly 85% of trades, so USD news moves almost everything. EUR/USD and GBP/USD usually move together; EUR/USD and USD/CHF usually move opposite. 'Risk-on' environments weaken safe-havens (JPY, CHF, USD); 'risk-off' strengthens them. If two correlated pairs give you two signals, that is one trade, not two.",
-        question: "Why does USD news affect nearly every pair?",
-        answer: "The dollar is on one side of about 85% of all forex trades.",
+          "A pair is a relative price: always consider both currencies. Several positions that share a currency or economic driver can create overlapping exposure, even when their charts look different. Historical correlations can change and do not guarantee the next move. Test relationships over a stated period and review combined risk instead of assuming that several tickets are independent trades.",
+        question: "Why review combined exposure across several pairs?",
+        answer:
+          "Different tickets can share a currency or economic driver. Correlations change, so do not assume each trade is independent or that past co-movement will continue.",
       },
       {
         id: "m3l4",
         title: "Reading the calendar properly",
         content:
-          "For each event check: impact rating, the forecast, the previous number, and the time. The market reacts to the gap between forecast and actual — not to the number itself. Also check whether the event lands inside your trading session. A strong trade idea taken 10 minutes before CPI is not a strong trade.",
+          "For each event check the title, currency, time zone, impact rating, forecast, previous figure and revisions. The gap between expectations and the release can matter, but reactions also depend on positioning, other news and policy interpretation. Ratings and forecasts are a provider's estimates, not guarantees. Decide your own risk rules before a release and confirm important timings with the official issuer.",
         question: "What actually moves the market when news drops?",
-        answer: "The surprise — the gap between the forecast and the actual figure.",
+        answer:
+          "The surprise can matter, alongside revisions, positioning and interpretation. No calendar number guarantees the direction or size of a move.",
       },
     ],
   },
