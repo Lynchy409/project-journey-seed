@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Complete pending fitness database migration and verify real preview saves, linked tasks/goals and isolation; do not publish.
+
 - [x] Edit previous trade logs (TradeSheet prefill + updateTrade)
 - [ ] Edit any journal entry (all pillars/types) with a confirm step before saving
 - [ ] Publish when user asks (photos, games, routines, morning flow, lessons, edits)
