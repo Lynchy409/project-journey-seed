@@ -11,6 +11,54 @@ export const STRATEGIES = [
 
 export const OUTCOMES = ["open", "win", "loss", "breakeven"] as const;
 
+/* ------------------------- structured trade detail ------------------------- */
+
+export const SOURCES = [
+  { value: "live", label: "Live" },
+  { value: "demo", label: "Demo" },
+  { value: "backtest", label: "Backtest" },
+] as const;
+
+export const SETUPS = [
+  { value: "order_block", label: "Order block" },
+  { value: "fvg", label: "Fair value gap" },
+  { value: "bos", label: "Break of structure" },
+  { value: "liquidity_draw", label: "Liquidity draw" },
+  { value: "breaker", label: "Breaker" },
+  { value: "range_play", label: "Range play" },
+  { value: "other", label: "Other" },
+] as const;
+
+export const TIMEFRAMES = ["1m", "5m", "15m", "30m", "1h", "4h", "1d"] as const;
+
+export const CONFIRMATIONS = [
+  { value: "bos", label: "Break of structure" },
+  { value: "choch", label: "Change of character" },
+  { value: "fvg_fill", label: "FVG fill" },
+  { value: "ob_tap", label: "Order block tap" },
+  { value: "none", label: "None" },
+] as const;
+
+export type TrendCtx = { tf: string; direction: "bullish" | "bearish" | "range" };
+export type Confluence = { type: string; tf: string; role: "context" | "entry" };
+export type FurtherLevels = {
+  sought: "yes" | "no" | "unknown";
+  level: string;
+  when: "during" | "after" | "";
+};
+
+export function durationLabel(start: string | null, end: string | null): string {
+  if (!start || !end) return "";
+  const [sh = 0, sm = 0] = start.split(":").map(Number);
+  const [eh = 0, em = 0] = end.split(":").map(Number);
+  let mins = eh * 60 + em - (sh * 60 + sm);
+  if (mins < 0) mins += 24 * 60; // overnight
+  if (mins === 0) return "<1m";
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h ? `${h}h${m ? ` ${m}m` : ""}` : `${m}m`;
+}
+
 const DEFAULT_RULES = [
   "Only trade my two setups: all timeframes aligned, or HTF draw on liquidity.",
   "No entry without a 1 min break of structure when the setup calls for it.",
@@ -176,7 +224,9 @@ export const biasHistoryQuery = queryOptions({
 
 export async function saveBias(input: BiasInput, verdict: string) {
   const user = await uid();
-  const { error } = await supabase.from("bias_snapshots").insert({ ...input, verdict, user_id: user });
+  const { error } = await supabase
+    .from("bias_snapshots")
+    .insert({ ...input, verdict, user_id: user });
   if (error) throw error;
 }
 
@@ -190,4 +240,58 @@ export function tradeStats(rows: { outcome: string; result_r: number | null }[])
     winRate: closed.length ? Math.round((wins / closed.length) * 100) : 0,
     totalR: Math.round(totalR * 10) / 10,
   };
+}
+
+/* ------------------------------ trading plan ------------------------------ */
+
+export type TradingPlanRow = Database["public"]["Tables"]["trading_plans"]["Row"];
+type TradingPlanInsert = Omit<Database["public"]["Tables"]["trading_plans"]["Insert"], "user_id">;
+
+export const tradingPlanQuery = queryOptions({
+  queryKey: ["trading_plan"],
+  queryFn: async () => {
+    const { data, error } = await supabase.from("trading_plans").select("*").limit(1);
+    if (error) throw error;
+    return data[0] ?? null;
+  },
+});
+
+export async function saveTradingPlan(input: TradingPlanInsert) {
+  const user = await uid();
+  const { data: existing } = await supabase.from("trading_plans").select("id").limit(1);
+  const { error } = existing?.length
+    ? await supabase
+        .from("trading_plans")
+        .update({ ...input, user_id: user })
+        .eq("id", existing[0]!.id)
+    : await supabase.from("trading_plans").insert({ ...input, user_id: user });
+  if (error) throw error;
+}
+
+/* -------------------------------- backtests -------------------------------- */
+
+export type BacktestRow = Database["public"]["Tables"]["backtests"]["Row"];
+type BacktestInsert = Omit<Database["public"]["Tables"]["backtests"]["Insert"], "user_id">;
+
+export const backtestsQuery = queryOptions({
+  queryKey: ["backtests"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("backtests")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+});
+
+export async function addBacktest(input: BacktestInsert) {
+  const user = await uid();
+  const { error } = await supabase.from("backtests").insert({ ...input, user_id: user });
+  if (error) throw error;
+}
+
+export async function deleteBacktest(id: string) {
+  const { error } = await supabase.from("backtests").delete().eq("id", id);
+  if (error) throw error;
 }
