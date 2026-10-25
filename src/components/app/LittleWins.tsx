@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Pause, Play, Plus, Shuffle, Trash2, X, Zap } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +15,7 @@ import { fitnessHistoryQuery, trainingSlotForTask, type FitnessWorkout } from "@
 const ORDER: (Pillar | "all")[] = ["all", "fitness", "trading", "learning", "life"];
 
 export function LittleWins({ only, compact = false }: { only?: Pillar; compact?: boolean }) {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: wins } = useQuery(winsQuery);
   const { data: logs } = useQuery(winLogsQuery);
@@ -31,7 +33,8 @@ export function LittleWins({ only, compact = false }: { only?: Pillar; compact?:
     if (w) setView(w);
     else undo.mutate(logId);
   };
-  const openWin = (w: Win) => w.pillar === "fitness" ? setFitnessWin(w) : setRunning(w);
+  const isSpanishWin = (w: Win) => w.pillar === "learning" && /spanish|language transfer/i.test(w.title);
+  const openWin = (w: Win) => isSpanishWin(w) ? void navigate({ to: "/learn", search: { area: "spanish" } }) : w.pillar === "fitness" ? setFitnessWin(w) : setRunning(w);
   const [adding, setAdding] = useState(false);
   const [editMode, setEditMode] = useState(false);
 
@@ -97,12 +100,12 @@ export function LittleWins({ only, compact = false }: { only?: Pillar; compact?:
             <li key={w.id} className={`flex min-h-14 items-center gap-3 rounded-2xl px-3 py-2 ${logId ? p.soft : "bg-secondary"}`}>
               <button
                 aria-label={logId ? w.pillar === "fitness" ? "Review completed activity" : "Undo" : w.pillar === "fitness" ? "Log activity" : "Tick off"}
-                onClick={() => (logId ? undoOrReview(logId, w.pillar === "fitness") : w.pillar === "fitness" ? openWin(w) : done.mutate(w))}
+                onClick={() => isSpanishWin(w) ? openWin(w) : (logId ? undoOrReview(logId, w.pillar === "fitness") : w.pillar === "fitness" ? openWin(w) : done.mutate(w))}
                 className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 transition-all ${logId ? `${p.bg} border-transparent text-primary-foreground scale-105` : "bg-card"}`}
               >
                 {logId && <Check className="h-5 w-5" />}
               </button>
-              <button onClick={() => logId ? undoOrReview(logId, w.pillar === "fitness") : openWin(w)} className="min-w-0 flex-1 text-left">
+              <button onClick={() => isSpanishWin(w) ? openWin(w) : logId ? undoOrReview(logId, w.pillar === "fitness") : openWin(w)} className="min-w-0 flex-1 text-left">
                 <p className={`text-sm font-extrabold ${logId ? "line-through opacity-60" : ""}`}>{w.title}</p>
                 <p className={`text-[11px] font-bold ${p.text}`}>{p.label} · {w.minutes} min</p>
               </button>
