@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, Moon, Sunrise } from "lucide-react";
 import { toast } from "sonner";
@@ -7,6 +7,8 @@ import { AppShell, Card, ProfileButton } from "@/components/app/AppShell";
 import { PlayerCard } from "@/components/app/PlayerCard";
 import { Bar, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, TextArea, TextInput, Chip } from "@/components/app/ui";
 import { LittleWins } from "@/components/app/LittleWins";
+import { SpanishDailyTasks } from "@/components/app/SpanishHub";
+import { findSpanish, spanishDoneForDate, spanishItemsQuery } from "@/lib/spanish";
 import { FitnessDailyTasks, FitnessQuickLog } from "@/components/app/FitnessHub";
 import { fitnessTasksQuery, trainingSlotForTask } from "@/lib/fitness";
 import type { FitnessSlot } from "@/lib/fitness-types";
@@ -51,10 +53,14 @@ function greeting() {
 
 function Today() {
   const date = todayISO();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [fitnessSlot, setFitnessSlot] = useState<FitnessSlot | null>(null);
   const { data: fitnessTasks } = useQuery(fitnessTasksQuery);
+  const { data: spanishItems } = useQuery(spanishItemsQuery);
+  const spanishIsConfigured = !!findSpanish(spanishItems ?? [], "profile", "main");
+  const isSpanishSlot = (task: { title: string; pillar: string }) => task.pillar === "learning" && /spanish|language transfer/i.test(task.title);
 
   const { data: profile } = useQuery(profileQuery);
   const { data: entry } = useQuery(dayEntryQuery(date));
@@ -70,6 +76,7 @@ function Today() {
   const tasks = tpl?.template_tasks ?? [];
   const doneMap = new Map((logs ?? []).map((l) => [l.template_task_id, l.done]));
   const isTaskDone = (t: (typeof tasks)[number]) => {
+    if (spanishIsConfigured && isSpanishSlot(t)) return spanishDoneForDate(spanishItems ?? [], date);
     const slot = t.pillar === "fitness" ? trainingSlotForTask(t.title) : null;
     return !!doneMap.get(t.id) || (!!slot && !!fitnessTasks?.some(f => f.date === date && (f.slot === slot || (/gym.*or.*sprint/i.test(t.title) && f.slot === "cardio")) && f.status === "done"));
   };
@@ -150,6 +157,7 @@ function Today() {
 
       <DailyDrivers date={date} />
       <FitnessDailyTasks compact initialDate={date} />
+      <SpanishDailyTasks date={date} />
       {fitnessSlot && <FitnessQuickLog slot={fitnessSlot} date={date} onClose={() => setFitnessSlot(null)} />}
 
 
@@ -184,7 +192,7 @@ function Today() {
               return (
                 <li key={t.id}>
                   <button
-                    onClick={() => linkedSlot ? setFitnessSlot(linkedSlot) : toggle.mutate(t)}
+                    onClick={() => isSpanishSlot(t) ? void navigate({ to: "/learn", search: { area: "spanish" } }) : linkedSlot ? setFitnessSlot(linkedSlot) : toggle.mutate(t)}
                     className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${
                       done ? "border-transparent bg-secondary" : "bg-card"
                     }`}
@@ -198,12 +206,13 @@ function Today() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className={`block text-base font-bold leading-tight ${done ? "text-muted-foreground line-through" : ""}`}>
-                        {t.title}
+                        {spanishIsConfigured && isSpanishSlot(t) ? "Daily Spanish minimum" : t.title}
                       </span>
                       <span className={`text-xs font-bold ${PILLARS[p].text}`}>
                         {PILLARS[p].label}
                         {t.non_negotiable ? " · non-negotiable" : ""}
                         {linkedSlot ? " · uses training log" : ""}
+                        {isSpanishSlot(t) ? " · uses Spanish activities" : ""}
                       </span>
                     </span>
                   </button>

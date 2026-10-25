@@ -1,5 +1,23 @@
 # Journey trading QA
 
+## Spanish acceptance inventory
+
+- Preserve existing Market/Focus/Games/Cards/Log and all other app routes.
+- Add Spanish under Learn only, with deep links from Today and daily Spanish tasks.
+- Save a profile without assuming beginner or assigning a certified CEFR level.
+- Generate concrete daily activities around a 25-minute estimated workload; completion is activity-based, not timer-based. No backlog penalty.
+- Play official Language Transfer SoundCloud audio with explicit third-party consent, real track metadata, per-track resume and honest played-time accounting excluding seeks/pauses.
+- Keep external-app LT history separate; initial completed lessons are explicitly self-reported.
+- Save/filter listening items and phrases; external playback is not automatically treated as completed.
+- Show source-labelled discovery links and difficulty feedback without fabricated optimality.
+- Authenticated AI conversation corrects each reply, allows valid alternatives, groups confident non-typo rule mistakes, and retains drafts on failure.
+- Mistake practice cycles due rules with fresh examples, grades semantically and spaces successful reviews. Dismiss/restore incorrect suggestions.
+- Voice stays gated until explicitly quality-verified. No transcript-only pronunciation grade.
+- Roadmap uses separate can-do skills, personal goals and evidence; no fluency percentage or guaranteed date.
+- Practice includes response building, situations, transcript-backed listening questions, self-reported real missions and useful phrases.
+- Owner RLS, cross-user reference rejection, optimistic revision conflicts, atomic activity/task completion and retry idempotency tested in isolated SQL.
+- No production schema changes, publishing or main merge without separate approval.
+
 ## Fitness development verification
 
 - TypeScript and production build: passed.

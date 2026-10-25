@@ -19,6 +19,7 @@ import {
 } from "@/components/app/ui";
 import { MatchGame } from "@/components/app/MatchGame";
 import { StreakQuiz } from "@/components/app/StreakQuiz";
+import { SpanishHub } from "@/components/app/SpanishHub";
 import { prettyDate, todayISO } from "@/lib/dates";
 import {
   addCard,
@@ -54,8 +55,11 @@ import {
 } from "@/lib/curriculum";
 
 export const Route = createFileRoute("/_authenticated/learn")({
-  validateSearch: (search: Record<string, unknown>): { lesson?: string } =>
-    typeof search["lesson"] === "string" ? { lesson: search["lesson"].slice(0, 80) } : {},
+  validateSearch: (search: Record<string, unknown>): { lesson?: string; area?: "spanish"; task?: string } => ({
+    ...(typeof search["lesson"] === "string" ? { lesson: search["lesson"].slice(0, 80) } : {}),
+    ...(search["area"] === "spanish" ? { area: "spanish" as const } : {}),
+    ...(typeof search["task"] === "string" && /^[0-9a-f-]{36}$/i.test(search["task"]) ? { task: search["task"] } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Learn — My Journey" },
@@ -75,10 +79,11 @@ export const Route = createFileRoute("/_authenticated/learn")({
   component: Learn,
 });
 
-type Tab = "market" | "focus" | "games" | "cards" | "log";
+type Tab = "market" | "spanish" | "focus" | "games" | "cards" | "log";
 
 const TITLES: Record<Tab, string> = {
   market: "Market knowledge",
+  spanish: "Spanish",
   focus: "Focus",
   games: "Games",
   cards: "Flashcards",
@@ -86,31 +91,41 @@ const TITLES: Record<Tab, string> = {
 };
 
 function Learn() {
-  const [tab, setTab] = useState<Tab>("market");
-  const { lesson: requestedLesson } = Route.useSearch();
+  const { lesson: requestedLesson, area, task } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const [tab, setTab] = useState<Tab>(area === "spanish" ? "spanish" : "market");
+  const selectTab = (next: Tab) => {
+    setTab(next);
+    void navigate({ search: next === "spanish" ? { area: "spanish" } : {} });
+  };
   useEffect(() => {
     if (requestedLesson) setTab("market");
   }, [requestedLesson]);
+  useEffect(() => { if (area === "spanish") setTab("spanish"); }, [area, task]);
   return (
     <AppShell eyebrow="Learning" title={TITLES[tab]}>
-      <div className="grid grid-cols-5 gap-1 [&>button]:min-h-11">
-        <Chip active={tab === "market"} onClick={() => setTab("market")} className="min-w-0 !px-1">
+      <div className="grid grid-cols-3 gap-1 [&>button]:min-h-11">
+        <Chip active={tab === "market"} onClick={() => selectTab("market")} className="min-w-0 !px-1">
           Market
         </Chip>
-        <Chip active={tab === "focus"} onClick={() => setTab("focus")} className="min-w-0 !px-1">
+        <Chip active={tab === "spanish"} onClick={() => selectTab("spanish")} className="min-w-0 !px-1">
+          Spanish
+        </Chip>
+        <Chip active={tab === "focus"} onClick={() => selectTab("focus")} className="min-w-0 !px-1">
           Focus
         </Chip>
-        <Chip active={tab === "games"} onClick={() => setTab("games")} className="min-w-0 !px-1">
+        <Chip active={tab === "games"} onClick={() => selectTab("games")} className="min-w-0 !px-1">
           Games
         </Chip>
-        <Chip active={tab === "cards"} onClick={() => setTab("cards")} className="min-w-0 !px-1">
+        <Chip active={tab === "cards"} onClick={() => selectTab("cards")} className="min-w-0 !px-1">
           Cards
         </Chip>
-        <Chip active={tab === "log"} onClick={() => setTab("log")} className="min-w-0 !px-1">
+        <Chip active={tab === "log"} onClick={() => selectTab("log")} className="min-w-0 !px-1">
           Log
         </Chip>
       </div>
       {tab === "market" && <Market />}
+      {tab === "spanish" && <SpanishHub initialTask={task} />}
       {tab === "focus" && <Focus />}
       {tab === "games" && <Games />}
       {tab === "cards" && <Cards />}
