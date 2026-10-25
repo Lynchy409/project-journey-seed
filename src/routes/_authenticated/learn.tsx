@@ -166,6 +166,37 @@ function Market() {
         </div>
       </Card>
 
+      {(() => {
+        const next =
+          MODULES.flatMap((m) => m.lessons).find((l) => statusOf(l.id) !== "learned") ?? null;
+        const nextTerm = next ? null : (TERMS.find((t) => statusOf(t.id) !== "learned") ?? null);
+        if (!next && !nextTerm) {
+          return (
+            <Card>
+              <p className="text-sm font-semibold text-learning">
+                Curriculum complete — keep reviewing terms and testing what you've learned on the
+                charts.
+              </p>
+            </Card>
+          );
+        }
+        return (
+          <Card>
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Today's task
+            </p>
+            <p className="mt-1 text-lg font-extrabold leading-snug">
+              {next ? next.title : nextTerm!.term}
+            </p>
+            <div className="mt-3">
+              <PrimaryButton onClick={() => openItem(next, nextTerm)} className="w-full">
+                Start now
+              </PrimaryButton>
+            </div>
+          </Card>
+        );
+      })()}
+
       {(lesson || term) && (
         <Card>
           <div className="flex items-start justify-between gap-2">

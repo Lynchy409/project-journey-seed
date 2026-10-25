@@ -4,6 +4,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ExternalLink,
+  Eye,
   GraduationCap,
   ImagePlus,
   Newspaper,
@@ -47,8 +48,11 @@ import {
   computeBias,
   deleteBacktest,
   deleteRule,
+  deleteMarketInspection,
   deleteTrade,
   durationLabel,
+  addMarketInspection,
+  marketInspectionsQuery,
   saveBias,
   saveTradingPlan,
   tradingPlanQuery,
@@ -90,10 +94,21 @@ export const Route = createFileRoute("/_authenticated/trade")({
 });
 
 type Tab =
-  "bias" | "log" | "edge" | "cal" | "rules" | "plan" | "backtest" | "lessons" | "news" | "calc";
+  | "bias"
+  | "inspect"
+  | "log"
+  | "edge"
+  | "cal"
+  | "rules"
+  | "plan"
+  | "backtest"
+  | "lessons"
+  | "news"
+  | "calc";
 
 const TAB_TITLES: Record<Tab, string> = {
   bias: "Bias tracker",
+  inspect: "Market inspection",
   log: "Trade log",
   edge: "Edge finder",
   cal: "Trading calendar",
@@ -112,6 +127,9 @@ function Trade() {
       <div className="flex flex-wrap gap-2">
         <Chip active={tab === "bias"} onClick={() => setTab("bias")} className="flex-1">
           Bias
+        </Chip>
+        <Chip active={tab === "inspect"} onClick={() => setTab("inspect")} className="flex-1">
+          Inspect
         </Chip>
         <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">
           Log
@@ -142,6 +160,7 @@ function Trade() {
         </Chip>
       </div>
       {tab === "bias" && <BiasTab />}
+      {tab === "inspect" && <InspectTab />}
       {tab === "log" && <LogTab />}
       {tab === "edge" && <EdgeTab />}
       {tab === "cal" && <TradeCalendar />}
@@ -382,6 +401,13 @@ function LogTab() {
                   Entry {t.entry_tf}
                 </span>
               )}
+              {t.confirmation && (
+                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+                  Conf{" "}
+                  {CONFIRMATIONS.find((c) => c.value === t.confirmation)?.label ?? t.confirmation}
+                  {t.confirmation_tf ? ` ${t.confirmation_tf}` : ""}
+                </span>
+              )}
               {Array.isArray(t.trend_context) &&
                 (t.trend_context as TrendCtx[]).map((r, i) => (
                   <span
@@ -461,6 +487,7 @@ function TradeSheet({
     setup: "",
     entry_tf: "",
     confirmation: "",
+    confirmation_tf: "",
     direction: "long",
     source: "live",
     entry: "",
@@ -498,6 +525,7 @@ function TradeSheet({
         setup: trade.setup ?? "",
         entry_tf: trade.entry_tf ?? "",
         confirmation: trade.confirmation ?? "",
+        confirmation_tf: trade.confirmation_tf ?? "",
         direction: trade.direction,
         source: trade.source ?? "live",
         entry: trade.entry != null ? String(trade.entry) : "",
@@ -543,6 +571,7 @@ function TradeSheet({
         setup: "",
         entry_tf: "",
         confirmation: "",
+        confirmation_tf: "",
         direction: "long",
         source: "live",
         entry: "",
@@ -590,6 +619,7 @@ function TradeSheet({
         setup: f.setup || null,
         entry_tf: f.entry_tf || null,
         confirmation: f.confirmation || null,
+        confirmation_tf: f.confirmation_tf || null,
         direction: f.direction,
         source: f.source,
         entry: f.entry ? Number(f.entry) : null,
@@ -770,6 +800,25 @@ function TradeSheet({
             </option>
           ))}
         </SelectInput>
+        <div className="mt-2 grid grid-cols-4 gap-2">
+          <Chip
+            active={f.confirmation_tf === ""}
+            onClick={() => set("confirmation_tf", "")}
+            className="flex-1"
+          >
+            Any TF
+          </Chip>
+          {TIMEFRAMES.map((tf) => (
+            <Chip
+              key={tf}
+              active={f.confirmation_tf === tf}
+              onClick={() => set("confirmation_tf", f.confirmation_tf === tf ? "" : tf)}
+              className="flex-1"
+            >
+              {tf}
+            </Chip>
+          ))}
+        </div>
       </Field>
       <Field label="Direction">
         <div className="flex gap-2">
@@ -1276,6 +1325,208 @@ function LessonsTab() {
         </div>
       </Card>
     </>
+  );
+}
+
+/* ----------------------------- market inspection ---------------------------- */
+
+function InspectTab() {
+  const qc = useQueryClient();
+  const { data: inspections } = useQuery(marketInspectionsQuery);
+  const [open, setOpen] = useState(false);
+
+  const remove = useMutation({
+    mutationFn: deleteMarketInspection,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["market_inspections"] }),
+  });
+
+  return (
+    <>
+      <Card>
+        <SectionTitle>Market inspection</SectionTitle>
+        <p className="mt-1 text-xs font-medium text-muted-foreground">
+          Study the market without needing a trade — what you saw, what you learned, what could
+          improve and what needs investigating next.
+        </p>
+        <div className="mt-3">
+          <PrimaryButton onClick={() => setOpen(true)}>
+            <span className="flex items-center justify-center gap-2">
+              <Eye className="h-5 w-5" /> Inspect the market
+            </span>
+          </PrimaryButton>
+        </div>
+      </Card>
+      {!inspections?.length ? (
+        <Card>
+          <Empty>No inspections yet — observe first, trade second.</Empty>
+        </Card>
+      ) : (
+        inspections.map((i) => (
+          <Card key={i.id}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-base font-extrabold">{i.pair ?? "Market overall"}</p>
+              <button
+                aria-label="Delete inspection"
+                onClick={() => remove.mutate(i.id)}
+                className="text-muted-foreground"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-1 text-xs font-bold text-muted-foreground">{prettyDate(i.date)}</p>
+            {i.market_view && (
+              <p className="mt-2 text-sm font-medium">
+                <span className="font-bold">View: </span>
+                {i.market_view}
+              </p>
+            )}
+            {i.spotted && (
+              <p className="mt-1 text-sm font-medium">
+                <span className="font-bold">Spotted: </span>
+                {i.spotted}
+              </p>
+            )}
+            {i.learnt && (
+              <p className="mt-1 rounded-2xl bg-trading-soft p-2 text-sm font-semibold text-trading">
+                Learnt: {i.learnt}
+              </p>
+            )}
+            {i.improve && (
+              <p className="mt-1 text-sm font-medium">
+                <span className="font-bold">Improve: </span>
+                {i.improve}
+              </p>
+            )}
+            {i.investigate && (
+              <p className="mt-1 text-sm font-medium text-muted-foreground">
+                <span className="font-bold">Investigate next: </span>
+                {i.investigate}
+              </p>
+            )}
+          </Card>
+        ))
+      )}
+      <InspectSheet open={open} onOpenChange={setOpen} />
+    </>
+  );
+}
+
+function InspectSheet({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const qc = useQueryClient();
+  const [f, setF] = useState({
+    date: todayISO(),
+    pair: "",
+    market_view: "",
+    spotted: "",
+    learnt: "",
+    improve: "",
+    investigate: "",
+  });
+
+  useEffect(() => {
+    if (open)
+      setF({
+        date: todayISO(),
+        pair: "",
+        market_view: "",
+        spotted: "",
+        learnt: "",
+        improve: "",
+        investigate: "",
+      });
+  }, [open]);
+
+  const save = useMutation({
+    mutationFn: async () => {
+      await addMarketInspection({
+        date: f.date,
+        pair: f.pair.trim() || null,
+        market_view: f.market_view.trim() || null,
+        spotted: f.spotted.trim() || null,
+        learnt: f.learnt.trim() || null,
+        improve: f.improve.trim() || null,
+        investigate: f.investigate.trim() || null,
+      });
+      if (f.learnt.trim()) {
+        await addEntry({
+          text: f.learnt.trim(),
+          pillar: "trading",
+          entry_type: "lesson",
+          is_lesson: true,
+          date: f.date,
+        });
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["market_inspections"] });
+      qc.invalidateQueries({ queryKey: ["lessons"] });
+      toast.success(f.learnt.trim() ? "Inspection saved and lesson added" : "Inspection saved");
+      onOpenChange(false);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
+  });
+
+  return (
+    <FormSheet open={open} onOpenChange={onOpenChange} title="Inspect the market">
+      <Field label="Date">
+        <TextInput
+          type="date"
+          value={f.date}
+          onChange={(e) => setF((s) => ({ ...s, date: e.target.value }))}
+        />
+      </Field>
+      <Field label="Pair (optional)">
+        <TextInput
+          value={f.pair}
+          onChange={(e) => setF((s) => ({ ...s, pair: e.target.value }))}
+          placeholder="Leave blank for the market overall"
+        />
+      </Field>
+      <Field label="My market view">
+        <TextArea
+          value={f.market_view}
+          onChange={(e) => setF((s) => ({ ...s, market_view: e.target.value }))}
+          placeholder="What's the story today — risk-on, ranging, trending?"
+        />
+      </Field>
+      <Field label="What I spotted">
+        <TextArea
+          value={f.spotted}
+          onChange={(e) => setF((s) => ({ ...s, spotted: e.target.value }))}
+          placeholder="Setups forming, levels holding, behaviour you noticed…"
+        />
+      </Field>
+      <Field label="What I learnt (also saved to Lessons)">
+        <TextArea
+          value={f.learnt}
+          onChange={(e) => setF((s) => ({ ...s, learnt: e.target.value }))}
+          placeholder="One clear takeaway…"
+        />
+      </Field>
+      <Field label="What could improve">
+        <TextArea
+          value={f.improve}
+          onChange={(e) => setF((s) => ({ ...s, improve: e.target.value }))}
+          placeholder="Anything that guides towards improvement…"
+        />
+      </Field>
+      <Field label="Investigate next">
+        <TextArea
+          value={f.investigate}
+          onChange={(e) => setF((s) => ({ ...s, investigate: e.target.value }))}
+          placeholder="A question, pattern or behaviour to dig into…"
+        />
+      </Field>
+      <PrimaryButton onClick={() => save.mutate()} disabled={save.isPending}>
+        Save inspection
+      </PrimaryButton>
+    </FormSheet>
   );
 }
 

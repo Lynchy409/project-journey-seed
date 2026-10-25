@@ -295,3 +295,34 @@ export async function deleteBacktest(id: string) {
   const { error } = await supabase.from("backtests").delete().eq("id", id);
   if (error) throw error;
 }
+
+/* ---------------------------- market inspections ---------------------------- */
+
+export type MarketInspectionRow = Database["public"]["Tables"]["market_inspections"]["Row"];
+type MarketInspectionInsert = Omit<
+  Database["public"]["Tables"]["market_inspections"]["Insert"],
+  "user_id"
+>;
+
+export const marketInspectionsQuery = queryOptions({
+  queryKey: ["market_inspections"],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("market_inspections")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+});
+
+export async function addMarketInspection(input: MarketInspectionInsert) {
+  const user = await uid();
+  const { error } = await supabase.from("market_inspections").insert({ ...input, user_id: user });
+  if (error) throw error;
+}
+
+export async function deleteMarketInspection(id: string) {
+  const { error } = await supabase.from("market_inspections").delete().eq("id", id);
+  if (error) throw error;
+}

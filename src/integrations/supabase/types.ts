@@ -677,6 +677,48 @@ export type Database = {
           },
         ];
       };
+      market_inspections: {
+        Row: {
+          created_at: string;
+          date: string;
+          id: string;
+          improve: string | null;
+          investigate: string | null;
+          learnt: string | null;
+          market_view: string | null;
+          pair: string | null;
+          spotted: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          date?: string;
+          id?: string;
+          improve?: string | null;
+          investigate?: string | null;
+          learnt?: string | null;
+          market_view?: string | null;
+          pair?: string | null;
+          spotted?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          date?: string;
+          id?: string;
+          improve?: string | null;
+          investigate?: string | null;
+          learnt?: string | null;
+          market_view?: string | null;
+          pair?: string | null;
+          spotted?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       momentum_days: {
         Row: {
           created_at: string;
@@ -1042,6 +1084,7 @@ export type Database = {
       trades: {
         Row: {
           confirmation: string | null;
+          confirmation_tf: string | null;
           created_at: string;
           date: string;
           direction: string;
@@ -1075,6 +1118,7 @@ export type Database = {
         };
         Insert: {
           confirmation?: string | null;
+          confirmation_tf?: string | null;
           created_at?: string;
           date?: string;
           direction?: string;
@@ -1108,6 +1152,7 @@ export type Database = {
         };
         Update: {
           confirmation?: string | null;
+          confirmation_tf?: string | null;
           created_at?: string;
           date?: string;
           direction?: string;
