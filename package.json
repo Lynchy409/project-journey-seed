@@ -11,7 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test:market": "tsx --test tests/market.test.ts",
-    "test:spanish": "tsx --test tests/spanish.test.ts && node --test tests/spanish-sql.test.mjs",
+    "test:spanish": "tsx --test tests/spanish.test.ts tests/spanish-service.test.ts && node --test tests/spanish-sql.test.mjs",
     "test:fitness": "tsx --test tests/fitness.test.ts && node --test tests/fitness-sql.test.mjs"
   },
   "overrides": {
