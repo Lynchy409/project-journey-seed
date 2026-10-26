@@ -50,7 +50,9 @@ import {
   spanishAbility,
   mergeSpanishRule,
 } from "@/lib/spanish";
-import { spanishAI, type SpanishAIResponse } from "@/lib/spanish.functions";
+import type { SpanishAIResponse } from "@/lib/spanish-ai";
+import { requestSpanishAI as spanishAI } from "@/lib/spanish-client";
+import { SpanishConnectionChecks } from "./spanish/SpanishConnectionChecks";
 import { canAwardSpanishPractice } from "@/lib/spanish-ai";
 import type {
   ConversationData,
@@ -210,9 +212,12 @@ function sectionFor(task: DailySpanishTask): Section {
 }
 export function SpanishHub({ initialTask }: { initialTask?: string | undefined }) {
   return (
-    <SpanishProvider>
-      <SpanishWorkspace initialTask={initialTask} />
-    </SpanishProvider>
+    <>
+      <SpanishConnectionChecks />
+      <SpanishProvider>
+        <SpanishWorkspace initialTask={initialTask} />
+      </SpanishProvider>
+    </>
   );
 }
 function SpanishWorkspace({ initialTask }: { initialTask?: string | undefined }) {
@@ -632,6 +637,21 @@ function Roadmap() {
           </a>
         </div>
       </Card>
+      <Card>
+        <Field label="Evidence from a fresh task or real conversation">
+          <TextArea
+            maxLength={1500}
+            placeholder="What did you actually do, with what support, and what still needs work? At least 20 characters."
+            value={evidence}
+            onChange={(event) => setEvidence(event.target.value)}
+          />
+        </Field>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Enter evidence here, then attach it to the relevant milestone below. Use a new situation
+          as a check, not the same memorised answer. Adjust your next challenge in your
+          starting-point settings when ready.
+        </p>
+      </Card>
       {CAN_DO.map((skill) => (
         <Card key={skill.id}>
           <h3 className="text-lg font-extrabold">{skill.title}</h3>
@@ -675,21 +695,6 @@ function Roadmap() {
           </ol>
         </Card>
       ))}
-      <Card>
-        <Field label="Evidence from a fresh task or real conversation">
-          <TextArea
-            maxLength={1500}
-            placeholder="What did you actually do, with what support, and what still needs work? At least 20 characters."
-            value={evidence}
-            onChange={(event) => setEvidence(event.target.value)}
-          />
-        </Field>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Enter evidence here, then attach it to the relevant milestone above. Use a new situation
-          as a check, not the same memorised answer. Adjust your next challenge in your
-          starting-point settings when ready.
-        </p>
-      </Card>
       <Card>
         <h3 className="font-extrabold">Recent practice evidence</h3>
         {w.history.isError ? (
@@ -1079,8 +1084,8 @@ function Conversation({ task }: { task?: SpanishItem | undefined }) {
         independent expert review.
       </p>
       <p className="mt-2 rounded-2xl bg-secondary p-3 text-sm">
-        Voice is awaiting quality verification. Typed conversation is available when the app's AI
-        service is configured; no pronunciation grade is implied.
+        Voice conversation is not connected yet. Typed conversation needs a working AI service. No
+        pronunciation grading or completed voice feature is claimed.
       </p>
       <Field label="Conversation situation">
         <TextInput

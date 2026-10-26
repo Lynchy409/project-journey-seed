@@ -1,6 +1,6 @@
 # Spanish workspace release
 
-This is an additive feature branch for Learn → Spanish, not a published or production-verified release. Existing Market, games, study tools, trading and fitness data are preserved.
+The original Learn → Spanish workspace was merged into main in PR #5. Connection/error-handling corrections are being tested separately. Spanish is not release-complete: real-service verification and voice remain open. Existing Market, games, study tools, trading and fitness data are preserved. See `docs/spanish-completion-checklist.md` for all remaining gates.
 
 ## Implemented scope
 

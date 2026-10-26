@@ -1,5 +1,14 @@
 # Journey trading QA
 
+## Spanish live-readiness correction
+
+- Setup check is available even when Spanish tables cannot load.
+- Without an AI request, report sign-in, readable tables and authenticated server configuration; never claim that readable tables prove saving/RLS.
+- Explicit AI-test button discloses runtime usage, sends a generic question through both actual passes and saves no lesson, mistake or completion.
+- Preserve specific, safe configuration/credit/access/model/timeout errors as serializable result data; do not leak provider bodies or secrets.
+- Conversation and challenge errors retain input and never award progress.
+- Provider tests cover both output envelope forms, draft/review failures, malformed/incomplete answers and timeout/network failures. These remain simulated provider tests, not live linguistic verification.
+
 ## Spanish acceptance inventory
 
 - Preserve existing Market/Focus/Games/Cards/Log and all other app routes.

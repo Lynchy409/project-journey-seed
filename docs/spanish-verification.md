@@ -4,6 +4,16 @@ This checklist separates local verification from real-service acceptance. A loca
 
 ## Local run record
 
+### Connection-handling correction
+
+The correction branch adds separate configuration and optional real-AI checks, safe serializable provider errors, and provider-protocol regression tests. Tests cover rejected/missing keys, 400/401/402/403/404/429/503 failures in both passes, incomplete/malformed/empty output, timeout/network failure and secret/body redaction. They use HTTP test doubles, not the real gateway.
+
+The production build, TypeScript, targeted lint, Spanish unit/provider/SQL suite and existing market/fitness suites pass locally. The fixture browser verifies that the setup check makes no model request, a missing key prevents a test request, a 402 is readable with its stage, a successful connection test writes no learner data, and a failed conversation preserves the reply and does not award completion. This does not establish the current live account's runtime balance or provider availability.
+
+After the final build, a fixture conversation saved all four replies, one activity and its matching daily-task completion. Roadmap evidence saved and survived reload, with its input now above the milestone buttons. The connection check remained available when the table fixture returned 42P01. All six main routes loaded at 375 and 1280 pixels with no page errors or horizontal overflow. Mobile screenshots were inspected. Voice remains explicitly unimplemented, not a claimed verified feature.
+
+### Original workspace
+
 Verified on 25 October 2026 against the compiled app with isolated authenticated browser fixtures, not the live Lovable database:
 
 - **Build and contracts:** TypeScript, production build, targeted Spanish lint, 15 Spanish unit checks and six SQL subchecks plus their parent test pass. Existing 17 market tests, 18 fitness unit tests and fitness SQL integration test also pass.
