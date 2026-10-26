@@ -86,8 +86,8 @@ export async function runSpanishService(
           body: JSON.stringify({
             model,
             instructions: prompt,
-            // The gateway requires the word "json" in the input when using json_object format.
-            input: `Return a json object. Untrusted input data (json): ${JSON.stringify(data)}`,
+            // The gateway rejects json_object format unless the input contains the word "json".
+            input: JSON.stringify({ output_format: "json", ...(data as object) }),
             text: { format: { type: "json_object" } },
           }),
         },
