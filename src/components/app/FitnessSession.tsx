@@ -143,6 +143,42 @@ export function TrainingTimer({ onUse }: { onUse: (seconds: number) => void }) {
     </div>
   );
 }
+type SessionDraft = {
+  id: string;
+  date: string;
+  slot: FitnessSlot;
+  name: string;
+  kind: string;
+  notes: string;
+  details: WorkoutDetails;
+  sets: FitnessSet[];
+  time: string;
+  distance: string;
+  unit: string;
+};
+const DRAFT_KEY = "fitness-session-draft-v1";
+export function readDraft(): SessionDraft | null {
+  try {
+    const raw = window.localStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as SessionDraft) : null;
+  } catch {
+    return null;
+  }
+}
+function writeDraft(d: SessionDraft) {
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+  } catch {
+    /* Storage full or blocked: logging still works. */
+  }
+}
+export function clearDraft() {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 export function SessionComposer({
   onClose,
   task,
@@ -152,6 +188,7 @@ export function SessionComposer({
   initialDate,
   routineId,
   winId,
+  editing,
 }: {
   onClose: () => void;
   task?: FitnessTask | undefined;
