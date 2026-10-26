@@ -1,3 +1,4 @@
+import { SpeakButton, VoiceInput } from "./spanish/VoiceControls";
 import {
   createContext,
   useCallback,
@@ -1084,8 +1085,8 @@ function Conversation({ task }: { task?: SpanishItem | undefined }) {
         independent expert review.
       </p>
       <p className="mt-2 rounded-2xl bg-secondary p-3 text-sm">
-        Voice conversation is not connected yet. Typed conversation needs a working AI service. No
-        pronunciation grading or completed voice feature is claimed.
+        Voice: tap "Speak your reply" to dictate in Spanish, and "Listen" to hear replies. Uses your
+        browser's built-in speech (free). Check the transcript before sending. No pronunciation score.
       </p>
       <Field label="Conversation situation">
         <TextInput
@@ -1121,9 +1122,10 @@ function Conversation({ task }: { task?: SpanishItem | undefined }) {
         </GhostButton>
       )}
       {conversation.opening && (
-        <p className="mt-3 rounded-2xl bg-secondary p-3" lang="es">
-          {conversation.opening}
-        </p>
+        <div className="mt-3 space-y-2 rounded-2xl bg-secondary p-3">
+          <p lang="es">{conversation.opening}</p>
+          <SpeakButton text={conversation.opening} />
+        </div>
       )}
       <ol aria-live="polite" className="mt-4 space-y-4">
         {conversation.turns.map((turn) => (
@@ -1134,6 +1136,7 @@ function Conversation({ task }: { task?: SpanishItem | undefined }) {
             <p className="whitespace-pre-wrap" lang="es">
               {turn.response}
             </p>
+            <SpeakButton text={turn.response} />
             {turn.corrected && (
               <p className="rounded-xl bg-secondary p-3" lang="es">
                 {turn.corrected}
@@ -1203,6 +1206,10 @@ function Conversation({ task }: { task?: SpanishItem | undefined }) {
             onChange={(event) => setReply(event.target.value)}
           />
         </Field>
+        <VoiceInput
+          disabled={w.busy}
+          onText={(text) => setReply((prev) => (prev ? `${prev} ${text}` : text).slice(0, 3000))}
+        />
         <PrimaryButton disabled={w.busy || !reply.trim()}>
           {w.busy ? "Checking your reply…" : "Send reply and get feedback"}
         </PrimaryButton>
