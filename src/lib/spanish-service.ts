@@ -86,7 +86,8 @@ export async function runSpanishService(
           body: JSON.stringify({
             model,
             instructions: prompt,
-            input: JSON.stringify(data),
+            // The gateway rejects json_object format unless the input contains the word "json".
+            input: JSON.stringify({ output_format: "json", ...(data as object) }),
             text: { format: { type: "json_object" } },
           }),
         },
