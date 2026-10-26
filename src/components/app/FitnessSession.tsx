@@ -170,42 +170,75 @@ export function SessionComposer({
   initialDate?: string;
   routineId?: string;
   winId?: string;
+  editing?: FitnessWorkout;
 }) {
   const refresh = useFitnessRefresh();
   const history = useQuery(fitnessHistoryQuery);
   const tasks = useQuery(fitnessTasksQuery);
   const planned = templatePayload(template ?? null);
-  const [id] = useState(() => crypto.randomUUID());
-  const [date, setDate] = useState(initialDate ?? task?.date ?? todayISO());
-  const [slot, setSlot] = useState<FitnessSlot>(task?.slot ?? template?.slot ?? initialSlot);
-  const [name, setName] = useState(movement?.name ?? template?.name ?? "");
+  // A plain "Log a session" sheet autosaves to this device so a reload or app switch never loses sets.
+  const usesDraft = !editing && !task && !template && !movement && !routineId && !winId;
+  const [draft] = useState<SessionDraft | null>(() => (usesDraft ? readDraft() : null));
+  const editDetails = editing ? detailsOf(editing) : null;
+  const [id] = useState(() => draft?.id ?? crypto.randomUUID());
+  const [date, setDate] = useState(
+    draft?.date ?? editing?.date ?? initialDate ?? task?.date ?? todayISO(),
+  );
+  const [slot, setSlot] = useState<FitnessSlot>(
+    draft?.slot ?? editDetails?.slot ?? task?.slot ?? template?.slot ?? initialSlot,
+  );
+  const [name, setName] = useState(
+    draft?.name ?? editing?.name ?? movement?.name ?? template?.name ?? "",
+  );
   const [kind, setKind] = useState(
-    movement?.kind ??
+    draft?.kind ??
+      editing?.kind ??
+      movement?.kind ??
       template?.kind ??
       (initialSlot === "cardio" ? "run" : initialSlot === "recovery" ? "recovery" : "gym"),
   );
-  const [notes, setNotes] = useState("");
-  const [details, setDetails] = useState<WorkoutDetails>(() => ({
-    ...emptyDetails(task?.slot ?? template?.slot ?? initialSlot),
-    variation: planned.details.variation,
-    score_unit: planned.details.score_unit,
-    score_direction: planned.details.score_direction,
-    template_id: template?.id ?? null,
-    template_version: template?.version ?? null,
-    template_snapshot: template?.payload ?? null,
-    routine_id: routineId ?? null,
-    win_id: winId ?? null,
-  }));
-  const [sets, setSets] = useState<FitnessSet[]>(() =>
-    movement
-      ? [emptySet(movement.name)]
-      : planned.sets.length
-        ? planned.sets.map((s) => ({ ...emptySet(s.exercise), load_type: s.load_type, notes: "" }))
-        : [emptySet()],
+  const [notes, setNotes] = useState(draft?.notes ?? editing?.notes ?? "");
+  const [details, setDetails] = useState<WorkoutDetails>(
+    () =>
+      draft?.details ??
+      editDetails ?? {
+        ...emptyDetails(task?.slot ?? template?.slot ?? initialSlot),
+        variation: planned.details.variation,
+        score_unit: planned.details.score_unit,
+        score_direction: planned.details.score_direction,
+        template_id: template?.id ?? null,
+        template_version: template?.version ?? null,
+        template_snapshot: template?.payload ?? null,
+        routine_id: routineId ?? null,
+        win_id: winId ?? null,
+      },
   );
-  const [time, setTime] = useState("");
-  const [distance, setDistance] = useState("");
-  const [unit, setUnit] = useState("miles");
+  const [sets, setSets] = useState<FitnessSet[]>(() =>
+    draft?.sets?.length
+      ? draft.sets
+      : editing
+        ? setsOf(editing).length
+          ? setsOf(editing)
+          : [emptySet()]
+        : movement
+          ? [emptySet(movement.name)]
+          : planned.sets.length
+            ? planned.sets.map((s) => ({
+                ...emptySet(s.exercise),
+                load_type: s.load_type,
+                notes: "",
+              }))
+            : [emptySet()],
+  );
+  const [time, setTime] = useState(
+    draft?.time ??
+      (editDetails?.duration_seconds != null ? duration(editDetails.duration_seconds) : ""),
+  );
+  const [distance, setDistance] = useState(
+    draft?.distance ??
+      (editDetails?.distance_m != null ? String(distanceUnits(editDetails.distance_m, "km")) : ""),
+  );
+  const [unit, setUnit] = useState(draft?.unit ?? (editDetails?.distance_m != null ? "km" : "miles"));
   const [taskId, setTaskId] = useState(task?.id ?? "");
   const [files, setFiles] = useState<File[]>([]);
   const [mediaError, setMediaError] = useState("");
@@ -214,6 +247,12 @@ export function SessionComposer({
   const [reviewOpen, setReviewOpen] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const [timerTarget, setTimerTarget] = useState("session");
+  useEffect(() => {
+    if (!usesDraft) return;
+    const meaningful = name.trim() || sets.some((s) => s.exercise.trim());
+    if (meaningful)
+      writeDraft({ id, date, slot, name, kind, notes, details, sets, time, distance, unit });
+  }, [usesDraft, id, date, slot, name, kind, notes, details, sets, time, distance, unit]);
   const setDetail = <K extends keyof WorkoutDetails>(key: K, value: WorkoutDetails[K]) =>
     setDetails((d) => ({ ...d, [key]: value }));
   const updateSet = (i: number, patch: Partial<FitnessSet>) =>
