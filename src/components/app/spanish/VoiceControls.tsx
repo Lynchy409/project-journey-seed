@@ -15,7 +15,9 @@ type Recognition = {
 
 function getRecognition(): (new () => Recognition) | undefined {
   const w = window as unknown as Record<string, unknown>;
-  return (w.SpeechRecognition ?? w.webkitSpeechRecognition) as (new () => Recognition) | undefined;
+  return (w["SpeechRecognition"] ?? w["webkitSpeechRecognition"]) as
+    | (new () => Recognition)
+    | undefined;
 }
 
 /** Browser speech-to-text (Spanish). Free, built into the browser; typing always remains available. */
