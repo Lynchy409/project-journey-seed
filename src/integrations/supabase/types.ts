@@ -1104,6 +1104,80 @@ export type Database = {
         }
         Relationships: []
       }
+      spanish_activities: {
+        Row: {
+          created_at: string
+          data: Json
+          date: string
+          id: string
+          kind: string
+          seconds: number
+          task_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          date: string
+          id?: string
+          kind: string
+          seconds?: number
+          task_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          date?: string
+          id?: string
+          kind?: string
+          seconds?: number
+          task_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spanish_activities_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "spanish_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      spanish_items: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          key: string
+          kind: string
+          revision: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id?: string
+          key: string
+          kind: string
+          revision?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          key?: string
+          kind?: string
+          revision?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       study_sessions: {
         Row: {
           created_at: string
@@ -1488,6 +1562,42 @@ export type Database = {
       move_fitness_task: {
         Args: { p_date: string; p_id: string; p_swap_id?: string }
         Returns: undefined
+      }
+      put_spanish_item: {
+        Args: {
+          p_data: Json
+          p_id: string
+          p_key: string
+          p_kind: string
+          p_revision: number
+        }
+        Returns: {
+          created_at: string
+          data: Json
+          id: string
+          key: string
+          kind: string
+          revision: number
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "spanish_items"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      record_spanish_activity: {
+        Args: {
+          p_data: Json
+          p_date: string
+          p_id: string
+          p_kind: string
+          p_seconds: number
+          p_task_id?: string
+        }
+        Returns: string
       }
       save_fitness_workout: {
         Args: {
