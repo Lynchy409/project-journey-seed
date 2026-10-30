@@ -36,6 +36,13 @@
       "when": 1792956245400,
       "tag": "0004_fitness_workspace",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793403907879,
+      "tag": "0005_training_log_atomic_edits",
+      "breakpoints": true
     }
   ]
 }

@@ -1558,6 +1558,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      commit_training_log: {
+        Args: { p_edit?: boolean; p_id: string; p_sets: Json; p_workout: Json }
+        Returns: string
+      }
       delete_fitness_workout: { Args: { p_id: string }; Returns: undefined }
       move_fitness_task: {
         Args: { p_date: string; p_id: string; p_swap_id?: string }
