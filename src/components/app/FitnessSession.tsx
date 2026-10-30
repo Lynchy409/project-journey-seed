@@ -170,6 +170,7 @@ export function SessionComposer({ onClose, task, template, initialSlot, movement
  });
  const patch = (value: Partial<SessionDraft>) => setState(s => ({ ...s, ...value }));
  const [draftError, setDraftError] = useState(false);
+ const [rawNumbers, setRawNumbers] = useState<Record<string,string>>({});
  const [files, setFiles] = useState<File[]>([]);
  const uploaded = useRef<{url: string; type: 'photo' | 'video'}[]>([]);
  useEffect(() => {
@@ -215,7 +216,7 @@ export function SessionComposer({ onClose, task, template, initialSlot, movement
      const best = (history.data??[]).flatMap(w=>setsOf(w)).filter(p=>p.exercise.trim().toLowerCase()===s.exercise.trim().toLowerCase() && p.load_type!=='assisted' && p.weight!=null && (p.reps??0)>0).sort((a,b)=>(b.weight??0)-(a.weight??0) || (b.reps??0)-(a.reps??0))[0];
      return <div key={i} className="space-y-3 border-b pb-4" data-testid={`training-set-${i}`}><Field label={`Set ${i+1} exercise`}><TextInput list="logged-exercises" value={s.exercise} onChange={e=>updateSet(i,{exercise:e.target.value})}/></Field>
       {s.exercise.trim() && <div className="text-sm text-muted-foreground" data-testid={`previous-sets-${i}`}><p>Previous{prev?` · ${prettyDate(prev.date)}`:''}: {previous.length?previous.map(setLabel).join(' / '):'No logged sets yet'}</p><p className="font-bold text-fitness">PB: {best?setLabel(best):'—'}</p></div>}
-      <div className="grid grid-cols-2 gap-3">{numeric(`Set ${i+1} weight (kg)`,s.weight==null?'':String(s.weight),v=>updateSet(i,{weight:numberOrNull(v)}))}{numeric(`Set ${i+1} reps`,s.reps==null?'':String(s.reps),v=>updateSet(i,{reps:numberOrNull(v)}),false)}</div>
+      <div className="grid grid-cols-2 gap-3">{numeric(`Set ${i+1} weight (kg)`,rawNumbers[`weight-${i}`] ?? (s.weight==null?'':String(s.weight)),v=>{setRawNumbers(r=>({...r,[`weight-${i}`]:v}));updateSet(i,{weight:numberOrNull(v)});})}{numeric(`Set ${i+1} reps`,rawNumbers[`reps-${i}`] ?? (s.reps==null?'':String(s.reps)),v=>{setRawNumbers(r=>({...r,[`reps-${i}`]:v}));updateSet(i,{reps:numberOrNull(v)});},false)}</div>
       <div className="flex gap-2"><GhostButton aria-label={`Add set after set ${i+1}`} onClick={()=>patch({sets:[...state.sets.slice(0,i+1),nextSet(s),...state.sets.slice(i+1)]})}><Plus size={18} className="mx-auto"/></GhostButton><GhostButton aria-label={`Remove set ${i+1}`} onClick={()=>patch({sets:state.sets.filter((_,n)=>n!==i)})}><Trash2 size={18} className="mx-auto"/></GhostButton></div>
      </div>;
     })}<GhostButton onClick={()=>patch({sets:[...state.sets,emptySet()]})}>Add exercise</GhostButton></section>}
