@@ -156,7 +156,7 @@ export function readDraft(): SessionDraft | null {
 }
 export function clearDraft() { try { localStorage.removeItem(DRAFT_KEY); localStorage.removeItem("fitness-session-draft-v1"); } catch { /* unavailable storage */ } }
 export function SessionComposer({ onClose, task, template, initialSlot, movement, initialDate, routineId, winId, editing, resume = false }: {
- onClose: () => void; task?: FitnessTask; template?: FitnessTemplate; initialSlot?: FitnessSlot; movement?: { name: string; kind: string; cue?: string; reference?: string; referenceName?: string; caution?: string }; initialDate?: string; routineId?: string; winId?: string; editing?: FitnessWorkout; resume?: boolean;
+ onClose: () => void; task?: FitnessTask; template?: FitnessTemplate | undefined; initialSlot?: FitnessSlot; movement?: { name: string; kind: string; cue?: string; reference?: string; referenceName?: string; caution?: string } | undefined; initialDate?: string; routineId?: string; winId?: string; editing?: FitnessWorkout; resume?: boolean;
 }) {
  const refresh = useFitnessRefresh();
  const history = useQuery(fitnessHistoryQuery);
