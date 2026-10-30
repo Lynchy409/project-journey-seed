@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Finish agreed Train redesign: multi-type fresh logs, decimal strength/PBs, fitness/recovery inputs, draft resume, session editing, exercise history and automatic Today completion; verify without publishing.
+
 - [ ] Complete pending fitness database migration and verify real preview saves, linked tasks/goals and isolation; do not publish.
 
 - [x] Edit previous trade logs (TradeSheet prefill + updateTrade)
