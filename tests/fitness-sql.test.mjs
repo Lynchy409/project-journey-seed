@@ -36,6 +36,11 @@ test("fitness migration: atomic RPCs, retry safety, additive compatibility and t
   );
   await db.exec(migration);
   await db.exec(migration); // Safe reconciliation of an already-applied additive migration.
+  await db.exec(`CREATE TABLE driver_logs(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id uuid NOT NULL, date date NOT NULL, driver_key text NOT NULL, evidence text NOT NULL, UNIQUE(user_id,date,driver_key));
+    GRANT ALL ON driver_logs TO authenticated;
+    ALTER TABLE driver_logs ENABLE ROW LEVEL SECURITY;
+    CREATE POLICY own ON driver_logs FOR ALL TO authenticated USING(auth.uid()=user_id) WITH CHECK(auth.uid()=user_id);`);
+  await db.exec(await readFile(new URL('../drizzle/migrations/0005_training_log_atomic_edits.sql',import.meta.url),'utf8'));
   assert.equal((await db.query("SELECT name,details FROM workouts")).rows[0].name, "Legacy row");
   await db.exec(`SET ROLE authenticated; SET test.uid='11111111-1111-4111-8111-111111111111';`);
   const task = (
@@ -143,6 +148,21 @@ test("fitness migration: atomic RPCs, retry safety, additive compatibility and t
   assert.equal((await db.query("SELECT count(*)::int n FROM win_logs")).rows[0].n, 1);
   await db.query("SELECT delete_fitness_workout($1)", [winWorkout]);
   assert.equal((await db.query("SELECT count(*)::int n FROM win_logs")).rows[0].n, 0);
+  const mixedId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  const mixed = {name:'Strength · Fitness · Recovery',date:'2026-10-30',kind:'sprints', details:{slot:'strength',completed_slots:['strength','cardio','recovery'],duration_seconds:900,distance_m:10,rounds:10}};
+  for (const slot of ['strength','cardio','recovery']) await db.query(`INSERT INTO fitness_tasks(user_id,date,slot,title,source_key) VALUES(auth.uid(),'2026-10-30',$1,$1,$1)`,[slot]);
+  const commit = (w=mixed,ss=[{...sets[0],weight:2.5}],edit=false)=>db.query('SELECT commit_training_log($1,$2,$3,$4)',[mixedId,JSON.stringify(w),JSON.stringify(ss),edit]);
+  await commit(); await commit();
+  assert.equal((await db.query('SELECT count(*)::int n FROM exercise_sets WHERE workout_id=$1',[mixedId])).rows[0].n,1);
+  assert.equal((await db.query("SELECT count(*)::int n FROM fitness_tasks WHERE date='2026-10-30' AND status='done'")).rows[0].n,3);
+  assert.deepEqual((await db.query('SELECT driver_key FROM driver_logs ORDER BY driver_key')).rows.map(r=>r.driver_key),['recovery','sprint','strength']);
+  await commit(mixed,[{...sets[0],weight:82.5}],true);
+  assert.equal(Number((await db.query('SELECT weight FROM exercise_sets WHERE workout_id=$1',[mixedId])).rows[0].weight),82.5);
+  await assert.rejects(commit(mixed,[{...sets[0],weight:-1}],true));
+  assert.equal(Number((await db.query('SELECT weight FROM exercise_sets WHERE workout_id=$1',[mixedId])).rows[0].weight),82.5,'failed edits retain previous sets');
+  assert.equal((await db.query('SELECT count(*)::int n FROM driver_logs')).rows[0].n,3,'editing never grants duplicate daily XP');
+  await db.query('SELECT delete_fitness_workout($1)',[mixedId]);
+  await db.query('DELETE FROM driver_logs WHERE evidence LIKE $1',[`[workout:${mixedId}]%`]);
   const template = (
     await db.query(
       "INSERT INTO fitness_templates(user_id,name,kind,slot) VALUES(auth.uid(),'Owned','gym','strength') RETURNING id",

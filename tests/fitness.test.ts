@@ -20,6 +20,33 @@ import {
 } from "../src/lib/fitness";
 import type { FitnessSet, GoalTracking } from "../src/lib/fitness-types";
 import type { Json } from "../src/integrations/supabase/types";
+import { sessionName, nextSet, completedDrivers, activityKind } from "../src/lib/training-log";
+
+test("all three selected sections name one session in canonical order", () => {
+  assert.equal(sessionName(["recovery", "strength", "cardio"]), "Strength · Fitness · Recovery");
+  assert.equal(sessionName(["cardio", "recovery"]), "Fitness · Recovery");
+});
+test("easy add copies exercise only and clears previous results", () => {
+  const next = nextSet({ ...emptySet("Bench press"), weight: 82.5, reps: 8 });
+  assert.equal(next.exercise, "Bench press");
+  assert.equal(next.weight, null);
+  assert.equal(next.reps, null);
+});
+test("a decimal 2.5 kilogram set is accepted", () => {
+  assert.doesNotThrow(() =>
+    validateSession("Strength", "2026-10-30", emptyDetails(), [
+      { ...emptySet("Lateral raise"), weight: 2.5, reps: 10 },
+    ]),
+  );
+});
+test("sprints complete only the sprint fitness driver, plus performed other sections", () => {
+  assert.deepEqual(completedDrivers(["strength", "cardio", "recovery"], activityKind("Sprints")), [
+    "strength",
+    "sprint",
+    "recovery",
+  ]);
+  assert.deepEqual(completedDrivers(["cardio"], activityKind("Run")), ["cardio"]);
+});
 
 function workout(
   id: string,

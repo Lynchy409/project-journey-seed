@@ -7,12 +7,23 @@ import {
   Field,
   FormSheet,
   GhostButton,
+  Chip,
   PrimaryButton,
   SectionTitle,
   SelectInput,
   TextArea,
   TextInput,
 } from "./ui";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  activityKind,
+  FITNESS_ACTIVITIES,
+  nextSet,
+  sessionName,
+  TRAINING_LABELS,
+  TRAINING_ORDER,
+} from "@/lib/training-log";
+import { validateSession } from "@/lib/fitness";
 import { todayISO, prettyDate } from "@/lib/dates";
 import { MOVEMENTS } from "@/lib/fitness-library";
 import { uploadWorkoutMedia } from "@/lib/train";
@@ -68,6 +79,8 @@ export function useFitnessRefresh() {
         "checkin",
         "routine_logs",
         "win_logs",
+        "driver_logs",
+        "all_driver_logs",
       ].map((k) => qc.invalidateQueries({ queryKey: [k] })),
     );
 }
@@ -146,52 +159,54 @@ export function TrainingTimer({ onUse }: { onUse: (seconds: number) => void }) {
 type SessionDraft = {
   id: string;
   date: string;
-  slot: FitnessSlot;
-  name: string;
-  kind: string;
-  notes: string;
-  details: WorkoutDetails;
+  slots: FitnessSlot[];
   sets: FitnessSet[];
+  activity: string;
   time: string;
   distance: string;
   unit: string;
+  rounds: string;
+  focus: string;
+  circuits: string[];
+  recoveryTime: string;
+  areas: string[];
+  problem: string;
+  notes: string;
+  cooldown: boolean;
 };
-const DRAFT_KEY = "fitness-session-draft-v1";
+const DRAFT_KEY = "fitness-session-draft-v2";
 export function readDraft(): SessionDraft | null {
   try {
-    const raw = window.localStorage.getItem(DRAFT_KEY);
-    return raw ? (JSON.parse(raw) as SessionDraft) : null;
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    return Array.isArray(d.slots) && Array.isArray(d.sets) ? d : null;
   } catch {
     return null;
   }
 }
-function writeDraft(d: SessionDraft) {
-  try {
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
-  } catch {
-    /* Storage full or blocked: logging still works. */
-  }
-}
 export function clearDraft() {
   try {
-    window.localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem("fitness-session-draft-v1");
   } catch {
-    /* ignore */
+    /* unavailable storage */
   }
 }
 export function SessionComposer({
   onClose,
   task,
   template,
-  initialSlot = "strength",
+  initialSlot,
   movement,
   initialDate,
   routineId,
   winId,
   editing,
+  resume = false,
 }: {
   onClose: () => void;
-  task?: FitnessTask | undefined;
+  task?: FitnessTask;
   template?: FitnessTemplate | undefined;
   initialSlot?: FitnessSlot;
   movement?:
@@ -208,680 +223,523 @@ export function SessionComposer({
   routineId?: string;
   winId?: string;
   editing?: FitnessWorkout;
+  resume?: boolean;
 }) {
   const refresh = useFitnessRefresh();
   const history = useQuery(fitnessHistoryQuery);
-  const tasks = useQuery(fitnessTasksQuery);
-  const planned = templatePayload(template ?? null);
-  // A plain "Log a session" sheet autosaves to this device so a reload or app switch never loses sets.
-  const usesDraft = !editing && !task && !template && !movement && !routineId && !winId;
-  const [draft] = useState<SessionDraft | null>(() => (usesDraft ? readDraft() : null));
-  const editDetails = editing ? detailsOf(editing) : null;
-  const [id] = useState(() => draft?.id ?? crypto.randomUUID());
-  const [date, setDate] = useState(
-    draft?.date ?? editing?.date ?? initialDate ?? task?.date ?? todayISO(),
-  );
-  const [slot, setSlot] = useState<FitnessSlot>(
-    draft?.slot ?? editDetails?.slot ?? task?.slot ?? template?.slot ?? initialSlot,
-  );
-  const [name, setName] = useState(
-    draft?.name ?? editing?.name ?? movement?.name ?? template?.name ?? "",
-  );
-  const [kind, setKind] = useState(
-    draft?.kind ??
-      editing?.kind ??
-      movement?.kind ??
-      template?.kind ??
-      (initialSlot === "cardio" ? "run" : initialSlot === "recovery" ? "recovery" : "gym"),
-  );
-  const [notes, setNotes] = useState(draft?.notes ?? editing?.notes ?? "");
-  const [details, setDetails] = useState<WorkoutDetails>(
-    () =>
-      draft?.details ??
-      editDetails ?? {
-        ...emptyDetails(task?.slot ?? template?.slot ?? initialSlot),
-        variation: planned.details.variation,
-        score_unit: planned.details.score_unit,
-        score_direction: planned.details.score_direction,
-        template_id: template?.id ?? null,
-        template_version: template?.version ?? null,
-        template_snapshot: template?.payload ?? null,
-        routine_id: routineId ?? null,
-        win_id: winId ?? null,
-      },
-  );
-  const [sets, setSets] = useState<FitnessSet[]>(() =>
-    draft?.sets?.length
-      ? draft.sets
-      : editing
-        ? setsOf(editing).length
-          ? setsOf(editing)
-          : [emptySet()]
-        : movement
-          ? [emptySet(movement.name)]
-          : planned.sets.length
-            ? planned.sets.map((s) => ({
-                ...emptySet(s.exercise),
-                load_type: s.load_type,
-                notes: "",
-              }))
-            : [emptySet()],
-  );
-  const [time, setTime] = useState(
-    draft?.time ??
-      (editDetails?.duration_seconds != null ? duration(editDetails.duration_seconds) : ""),
-  );
-  const [distance, setDistance] = useState(
-    draft?.distance ??
-      (editDetails?.distance_m != null ? String(distanceUnits(editDetails.distance_m, "km")) : ""),
-  );
-  const [unit, setUnit] = useState(draft?.unit ?? (editDetails?.distance_m != null ? "km" : "miles"));
-  const [taskId, setTaskId] = useState(task?.id ?? "");
+  const user = useQuery({
+    queryKey: ["training-draft-user"],
+    queryFn: async () => (await supabase.auth.getUser()).data.user?.id ?? "",
+  });
+  const d = editing ? detailsOf(editing) : emptyDetails(initialSlot);
+  const [state, setState] = useState<SessionDraft>(() => {
+    const draft = resume ? readDraft() : null;
+    if (draft) return draft;
+    const slot = task?.slot ?? template?.slot ?? initialSlot;
+    return {
+      id: editing?.id ?? crypto.randomUUID(),
+      date: editing?.date ?? initialDate ?? task?.date ?? todayISO(),
+      slots: editing ? (d.slots ?? [d.slot]) : slot ? [slot] : [],
+      sets: editing ? setsOf(editing) : [emptySet(movement?.name ?? "")],
+      activity: d.fitness_activity ?? (editing && d.slot === "cardio" ? editing.kind : ""),
+      time: d.duration_seconds != null ? duration(d.duration_seconds) : "",
+      distance:
+        d.distance_m != null ? String(d.distance_m / (editing?.kind === "sprints" ? 1 : 1000)) : "",
+      unit: "km",
+      rounds: d.rounds != null ? String(d.rounds) : "",
+      focus: d.fitness_focus ?? "",
+      circuits: d.circuit_exercises ?? [""],
+      recoveryTime:
+        d.recovery_seconds != null
+          ? duration(d.recovery_seconds)
+          : editing && d.slot === "recovery" && d.duration_seconds != null
+            ? duration(d.duration_seconds)
+            : "",
+      areas: d.recovery_areas ?? [],
+      problem: d.recovery_problem ?? "",
+      notes: editing?.notes ?? "",
+      cooldown: d.cooldown ?? false,
+    };
+  });
+  const patch = (value: Partial<SessionDraft>) => setState((s) => ({ ...s, ...value }));
+  const [draftError, setDraftError] = useState(false);
+  const [rawNumbers, setRawNumbers] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<File[]>([]);
-  const [mediaError, setMediaError] = useState("");
-  const [taskChoice, setTaskChoice] = useState(false);
   const uploaded = useRef<{ url: string; type: "photo" | "video" }[]>([]);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [advanced, setAdvanced] = useState(false);
-  const [timerTarget, setTimerTarget] = useState("session");
   useEffect(() => {
-    if (!usesDraft) return;
-    const meaningful = name.trim() || sets.some((s) => s.exercise.trim());
-    if (meaningful)
-      writeDraft({ id, date, slot, name, kind, notes, details, sets, time, distance, unit });
-  }, [usesDraft, id, date, slot, name, kind, notes, details, sets, time, distance, unit]);
-  const setDetail = <K extends keyof WorkoutDetails>(key: K, value: WorkoutDetails[K]) =>
-    setDetails((d) => ({ ...d, [key]: value }));
-  const updateSet = (i: number, patch: Partial<FitnessSet>) =>
-    setSets((rows) => rows.map((r, n) => (n === i ? { ...r, ...patch } : r)));
-  const available = (tasks.data ?? []).filter(
-    (t) => t.date === date && t.slot === slot && t.status === "planned",
-  );
-  const matchingTaskId = taskId || (!taskChoice ? (available[0]?.id ?? "") : "");
-  const actualSets = sets.filter(
-    (s) => s.exercise.trim() && [s.weight, s.reps, s.seconds, s.distance_m].some((v) => v !== null),
-  );
+    if (editing || !user.data) return;
+    const meaningful =
+      state.sets.some((s) => s.exercise || s.weight != null || s.reps != null) ||
+      state.activity ||
+      state.recoveryTime ||
+      state.notes;
+    if (!meaningful) return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...state, userId: user.data }));
+      setDraftError(false);
+    } catch {
+      setDraftError(true);
+    }
+  }, [state, editing, user.data]);
+  const kind = activityKind(state.activity);
+  const updateSet = (i: number, value: Partial<FitnessSet>) =>
+    patch({ sets: state.sets.map((s, n) => (n === i ? { ...s, ...value } : s)) });
   const save = useMutation({
     mutationFn: async () => {
+      const selected = TRAINING_ORDER.filter((s) => state.slots.includes(s));
+      if (!selected.length) throw new Error("Choose a session type.");
+      const sets = selected.includes("strength")
+        ? state.sets.filter(
+            (s) => s.exercise.trim() && (s.weight != null || s.reps != null || s.seconds != null),
+          )
+        : [];
       if (
-        sets.some(
-          (s) =>
-            !s.exercise.trim() &&
-            [s.weight, s.reps, s.seconds, s.distance_m].some((v) => v !== null),
-        )
+        selected.includes("strength") &&
+        state.sets.some((s) => !s.exercise.trim() && (s.weight != null || s.reps != null))
       )
-        throw new Error("Name each exercise or drill that has a result before saving.");
-      const seconds = parseDuration(time);
-      const metres = distance ? distanceMetres(Number(distance), unit) : null;
-      // Validate before uploading any media, and preserve the same ID on retry.
-      const full = { ...details, slot, duration_seconds: seconds, distance_m: metres };
-      const { validateSession } = await import("@/lib/fitness");
-      validateSession(name, date, full, actualSets);
+        throw new Error("Name each completed exercise.");
+      const fitnessTime =
+        selected.includes("cardio") && !["sprints", "cindy"].includes(kind)
+          ? parseDuration(state.time)
+          : null;
+      const recoverySeconds = selected.includes("recovery")
+        ? parseDuration(state.recoveryTime)
+        : null;
+      const metres =
+        selected.includes("cardio") && ["run", "sprints"].includes(kind)
+          ? state.distance.trim()
+            ? distanceMetres(Number(state.distance), kind === "sprints" ? "m" : state.unit)
+            : null
+          : null;
+      const rounds =
+        selected.includes("cardio") && ["sprints", "circuit", "cindy"].includes(kind)
+          ? numberOrNull(state.rounds)
+          : null;
+      const cardioDone =
+        selected.includes("cardio") &&
+        !!state.activity.trim() &&
+        !!(fitnessTime || metres || rounds);
+      const completed: FitnessSlot[] = [
+        ...(sets.length ? ["strength" as const] : []),
+        ...(cardioDone ? ["cardio" as const] : []),
+        ...(recoverySeconds ? ["recovery" as const] : []),
+      ];
+      for (const slot of selected)
+        if (!completed.includes(slot))
+          throw new Error(
+            `Enter your completed ${TRAINING_LABELS[slot].toLowerCase()} results, or deselect it.`,
+          );
+      const full: WorkoutDetails = {
+        ...d,
+        slot: completed[0] ?? "strength",
+        slots: selected,
+        completed_slots: completed,
+        fitness_activity: state.activity,
+        fitness_focus: state.focus,
+        circuit_exercises: state.circuits.filter((v) => v.trim()),
+        cooldown: state.cooldown,
+        recovery_seconds: recoverySeconds,
+        recovery_areas: state.areas,
+        recovery_problem: state.problem,
+        duration_seconds: fitnessTime ?? (selected.includes("cardio") ? null : recoverySeconds),
+        distance_m: metres,
+        rounds,
+        routine_id: routineId ?? d.routine_id,
+        win_id: winId ?? d.win_id,
+      };
+      const input = {
+        name: sessionName(selected),
+        date: state.date,
+        kind: cardioDone ? kind : selected.includes("strength") ? "gym" : "recovery",
+        notes: state.notes,
+        details: full,
+        sets,
+        media: Array.isArray(editing?.media)
+          ? (editing.media as { url: string; type: string }[])
+          : [],
+      };
+      validateSession(input.name, input.date, full, sets);
+      if (files.some((f) => f.size > 50 * 1024 * 1024))
+        throw new Error("Each attachment must be smaller than 50 MB.");
       for (const file of files.slice(uploaded.current.length))
         uploaded.current.push(await uploadWorkoutMedia(file));
-      if (mediaError) throw new Error(mediaError);
-      return saveFitnessWorkout(
-        id,
-        { name, date, kind, notes, details: full, sets: actualSets, media: uploaded.current },
-        matchingTaskId || undefined,
-      );
+      input.media = [...input.media, ...uploaded.current];
+      const { error } = await supabase.rpc("commit_training_log", {
+        p_id: state.id,
+        p_workout: {
+          ...input,
+          details: full as unknown as Json,
+          sets: undefined,
+        } as unknown as Json,
+        p_sets: sets as unknown as Json,
+        p_edit: !!editing,
+      });
+      if (error) throw error;
     },
     onSuccess: async () => {
+      if (!editing) clearDraft();
       await refresh();
       onClose();
     },
   });
-  let seconds: number | null = null;
-  try {
-    seconds = parseDuration(time);
-  } catch {
-    /* Shown on save. */
-  }
-  const metres = Number(distance) > 0 ? distanceMetres(Number(distance), unit) : null;
-  const runs = metres ? comparableRuns(history.data ?? [], kind, metres, details.variation) : [];
-  const bestRun = [...runs].sort(
-    (a, b) =>
-      (detailsOf(a).duration_seconds ?? Infinity) - (detailsOf(b).duration_seconds ?? Infinity),
-  )[0];
-  const sameScores = template
-    ? comparableScores(
-        history.data ?? [],
-        template.id,
-        template.version,
-        details.variation,
-        details.score_unit,
-        details.score_direction,
-      )
-    : [];
-  const bestScore = sameScores.length
-    ? (details.score_direction === "higher" ? Math.max : Math.min)(
-        ...sameScores.map((w) => detailsOf(w).score!),
-      )
-    : null;
-
+  const numeric = (label: string, value: string, change: (v: string) => void, decimal = true) => (
+    <Field label={label}>
+      <TextInput
+        inputMode={decimal ? "decimal" : "numeric"}
+        value={value}
+        onChange={(e) => change(e.target.value)}
+      />
+    </Field>
+  );
+  const known = [
+    ...new Map(
+      (history.data ?? [])
+        .flatMap((w) => setsOf(w))
+        .map((s) => [s.exercise.trim().toLowerCase(), s.exercise.trim()]),
+    ).values(),
+  ].filter(Boolean);
   return (
     <FormSheet
       open
+      title={editing ? "Edit session" : "Log a session"}
       onOpenChange={(v) => {
         if (!v && !save.isPending) onClose();
       }}
-      title="Log training"
     >
-      <fieldset disabled={save.isPending} className="min-w-0 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Activity date">
-            <TextInput
-              type="date"
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
-                if (!task) {
-                  setTaskId("");
-                  setTaskChoice(false);
-                }
-              }}
-              disabled={!!task}
-            />
-          </Field>
-          <Field label="Daily slot">
-            <SelectInput
-              value={slot}
-              disabled={!!task}
-              onChange={(e) => {
-                setSlot(e.target.value as FitnessSlot);
-                setTaskId("");
-                setTaskChoice(false);
-              }}
-            >
-              {SLOTS.map((s) => (
-                <option key={s}>{s}</option>
-              ))}
-            </SelectInput>
-          </Field>
-        </div>
-        <Field label="Session name">
-          <TextInput
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name your session"
-            maxLength={180}
-          />
-        </Field>
-        <Field label="Training type">
-          <SelectInput
-            value={kind}
-            onChange={(e) => {
-              setKind(e.target.value);
-              if (!task && !template) {
-                setSlot(slotForKind(e.target.value));
-                setTaskId("");
-                setTaskChoice(false);
+      <fieldset disabled={save.isPending} className="min-w-0 space-y-5">
+        <div className="flex flex-wrap gap-2">
+          {TRAINING_ORDER.map((slot) => (
+            <Chip
+              key={slot}
+              active={state.slots.includes(slot)}
+              className="min-h-12"
+              onClick={() =>
+                patch({
+                  slots: state.slots.includes(slot)
+                    ? state.slots.filter((s) => s !== slot)
+                    : [...state.slots, slot],
+                })
               }
-            }}
-          >
-            {FITNESS_KINDS.map((k) => (
-              <option key={k}>{k}</option>
-            ))}
-          </SelectInput>
-        </Field>
-        {movement?.cue && (
-          <div className="space-y-2 rounded-2xl bg-secondary p-3 text-sm">
-            <p>{movement.cue}</p>
-            {movement.caution && <p className="font-semibold">{movement.caution}</p>}
-            {movement.reference && (
-              <a
-                href={movement.reference}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 items-center font-bold underline"
-              >
-                {movement.referenceName ?? "Movement reference"}
-              </a>
-            )}
-          </div>
+            >
+              {TRAINING_LABELS[slot]}
+            </Chip>
+          ))}
+        </div>
+        {!!state.slots.length && (
+          <p className="font-extrabold text-lg">{sessionName(state.slots)}</p>
         )}
-        {routineId && (
-          <p className="text-sm text-muted-foreground">
-            Enter your actual duration or completed movements. The routine's planned timer is not
-            logged as completed work.
-          </p>
-        )}
-        {planned.instructions && (
-          <div className="rounded-2xl bg-secondary p-3 text-sm">
-            <p>{planned.instructions}</p>
-            {planned.source && (
-              <a
-                href={planned.source}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-block min-h-11 py-3 font-bold underline"
-              >
-                Original workout reference
-              </a>
-            )}
-            {planned.sets.map((s, i) => (
-              <p key={i} className="mt-1 text-xs">
-                Planned: {s.exercise} · {setLabel(s)}
-              </p>
-            ))}
-            <p className="mt-2 text-xs text-muted-foreground">
-              Planned values are not completed results. Enter what you actually did.
-            </p>
-          </div>
-        )}
-        <Field label="Variation / scaling / conditions">
+        <Field label="Date">
           <TextInput
-            value={details.variation}
-            onChange={(e) => setDetail("variation", e.target.value)}
-            placeholder="e.g. strict, band assisted, road, treadmill"
+            type="date"
+            value={state.date}
+            onChange={(e) => patch({ date: e.target.value })}
           />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Duration (minutes:seconds)">
-            <TextInput
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              placeholder="25:30"
-              inputMode="text"
-            />
-          </Field>
-          <Field label="Distance">
-            <TextInput
-              type="number"
-              min="0"
-              step="any"
-              value={distance}
-              onChange={(e) => setDistance(e.target.value)}
-              placeholder="Optional"
-            />
-          </Field>
-        </div>
-        <Field label="Distance unit">
-          <SelectInput value={unit} onChange={(e) => setUnit(e.target.value)}>
-            <option value="miles">Miles</option>
-            <option value="km">Kilometres</option>
-            <option value="m">Metres</option>
-          </SelectInput>
-        </Field>
-        {slot === "cardio" && (
-          <div className="rounded-2xl bg-secondary p-3 text-sm" data-testid="cardio-comparison">
-            <p className="font-bold">{pace(metres, seconds, unit === "m" ? "km" : unit)}</p>
-            {runs.length ? (
-              <>
-                <p>
-                  Previous at this distance/variation:{" "}
-                  {duration(detailsOf(runs.at(-1)!).duration_seconds)}
-                </p>
-                <p>Best: {duration(detailsOf(bestRun!).duration_seconds)}</p>
-              </>
-            ) : (
-              <p className="mt-1 text-muted-foreground">
-                Comparable runs appear after you log this distance and variation.
-              </p>
-            )}
-          </div>
-        )}
-        {slot === "recovery" && (
-          <>
-            <Field label="Recovery placement">
-              <SelectInput
-                value={details.recovery_phase}
-                onChange={(e) =>
-                  setDetail("recovery_phase", e.target.value as WorkoutDetails["recovery_phase"])
-                }
-              >
-                <option value="standalone">Standalone recovery</option>
-                <option value="before">Before another session</option>
-                <option value="after">After another session</option>
-              </SelectInput>
-            </Field>
-            {details.recovery_phase !== "standalone" && (
-              <Field label="Related session">
-                <SelectInput
-                  value={details.related_workout_id ?? ""}
-                  onChange={(e) => setDetail("related_workout_id", e.target.value || null)}
-                >
-                  <option value="">Optional: choose saved session</option>
-                  {(history.data ?? []).slice(0, 100).map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.date} · {w.name}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
-            )}
-          </>
-        )}
-        <Field label="Use timer result for">
-          <SelectInput value={timerTarget} onChange={(e) => setTimerTarget(e.target.value)}>
-            <option value="session">Session duration</option>
-            {sets.map((s, i) => (
-              <option value={String(i)} key={i}>
-                Set {i + 1}: {s.exercise || "unnamed"} continuous hold
-              </option>
-            ))}
-          </SelectInput>
-        </Field>
-        <TrainingTimer
-          onUse={(s) =>
-            timerTarget === "session"
-              ? setTime(duration(s))
-              : updateSet(Number(timerTarget), { seconds: s })
-          }
-        />
-        <SectionTitle>Sets / intervals / attempts</SectionTitle>
-        <datalist id="fitness-exercises">
-          {[
-            ...new Set([
-              ...MOVEMENTS.map((m) => m.name),
-              ...(history.data ?? []).flatMap((w) => setsOf(w).map((s) => s.exercise)),
-            ]),
-          ].map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
-        {sets.map((s, i) => {
-          const prev = s.exercise.trim()
-            ? previousExercise(history.data ?? [], s.exercise, date)
-            : undefined;
-          const prevSets = prev
-            ? setsOf(prev).filter(
-                (p) => p.exercise.toLowerCase() === s.exercise.trim().toLowerCase(),
-              )
-            : [];
-          return (
-            <div
-              key={i}
-              className="min-w-0 space-y-2 rounded-2xl border p-3"
-              data-testid={`training-set-${i}`}
-            >
-              <Field label={`Set ${i + 1} exercise / drill`}>
-                <TextInput
-                  list="fitness-exercises"
-                  value={s.exercise}
-                  onChange={(e) => updateSet(i, { exercise: e.target.value })}
-                  placeholder="Choose or type an exercise"
-                />
-              </Field>
-              {prev && (
-                <div
-                  className="rounded-xl bg-secondary p-3 text-xs"
-                  data-testid={`previous-sets-${i}`}
-                >
-                  <p className="font-bold">Previous session · {prettyDate(prev.date)}</p>
-                  {prevSets.map((p, n) => (
-                    <p key={n}>
-                      Set {n + 1}: {setLabel(p)}
-                    </p>
-                  ))}
-                </div>
-              )}
-              {history.isError && (
-                <p role="alert" className="text-xs">
-                  Previous-session history unavailable.{" "}
-                  <button className="underline" onClick={() => history.refetch()}>
-                    Retry history
-                  </button>
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <Field label={`Set ${i + 1} load (kg)`}>
-                  <TextInput
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={s.weight ?? ""}
-                    onChange={(e) => updateSet(i, { weight: numberOrNull(e.target.value) })}
-                  />
-                </Field>
-                <Field label={`Set ${i + 1} reps`}>
-                  <TextInput
-                    type="number"
-                    min="0"
-                    step="1"
-                    value={s.reps ?? ""}
-                    onChange={(e) => updateSet(i, { reps: numberOrNull(e.target.value) })}
-                  />
-                </Field>
-              </div>
-              <Field label={`Set ${i + 1} load type`}>
-                <SelectInput
-                  value={s.load_type}
-                  onChange={(e) =>
-                    updateSet(i, { load_type: e.target.value as FitnessSet["load_type"] })
-                  }
-                >
-                  <option value="external">External weight</option>
-                  <option value="bodyweight">Bodyweight</option>
-                  <option value="added">Added to bodyweight</option>
-                  <option value="assisted">Assistance (not lifted weight)</option>
-                </SelectInput>
-              </Field>
-              <div className="grid grid-cols-2 gap-2">
-                <Field label={`Set ${i + 1} seconds`}>
-                  <TextInput
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={s.seconds ?? ""}
-                    onChange={(e) => updateSet(i, { seconds: numberOrNull(e.target.value) })}
-                  />
-                </Field>
-                <Field label={`Set ${i + 1} rest seconds`}>
-                  <TextInput
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={s.rest_seconds ?? ""}
-                    onChange={(e) => updateSet(i, { rest_seconds: numberOrNull(e.target.value) })}
-                  />
-                </Field>
-              </div>
-              {advanced && (
-                <>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Field label={`Set ${i + 1} interval metres`}>
-                      <TextInput
-                        type="number"
-                        min="0"
-                        step="any"
-                        value={s.distance_m ?? ""}
-                        onChange={(e) => updateSet(i, { distance_m: numberOrNull(e.target.value) })}
-                      />
-                    </Field>
-                    <Field label={`Set ${i + 1} effort (1–10)`}>
-                      <TextInput
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={s.effort ?? ""}
-                        onChange={(e) => updateSet(i, { effort: numberOrNull(e.target.value) })}
-                      />
-                    </Field>
-                  </div>
-                  <Field label={`Set ${i + 1} side`}>
-                    <SelectInput
-                      value={s.side}
-                      onChange={(e) => updateSet(i, { side: e.target.value as FitnessSet["side"] })}
-                    >
-                      <option>both</option>
-                      <option>left</option>
-                      <option>right</option>
-                    </SelectInput>
-                  </Field>
-                  <Field label={`Set ${i + 1} technique / drill notes`}>
+        <FitnessError error={history.error} retry={() => history.refetch()} />
+        {state.slots.includes("strength") && (
+          <section className="space-y-3">
+            <SectionTitle>Strength</SectionTitle>
+            <datalist id="logged-exercises">
+              {known.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
+            {state.sets.map((s, i) => {
+              const prev = previousExercise(
+                history.data ?? [],
+                s.exercise,
+                state.date,
+                editing?.id,
+              );
+              const previous = prev
+                ? setsOf(prev).filter(
+                    (p) => p.exercise.trim().toLowerCase() === s.exercise.trim().toLowerCase(),
+                  )
+                : [];
+              const best = (history.data ?? [])
+                .flatMap((w) => setsOf(w))
+                .filter(
+                  (p) =>
+                    p.exercise.trim().toLowerCase() === s.exercise.trim().toLowerCase() &&
+                    p.load_type !== "assisted" &&
+                    p.weight != null &&
+                    (p.reps ?? 0) > 0,
+                )
+                .sort(
+                  (a, b) => (b.weight ?? 0) - (a.weight ?? 0) || (b.reps ?? 0) - (a.reps ?? 0),
+                )[0];
+              return (
+                <div key={i} className="space-y-3 border-b pb-4" data-testid={`training-set-${i}`}>
+                  <Field label={`Set ${i + 1} exercise`}>
                     <TextInput
-                      value={s.notes}
-                      onChange={(e) => updateSet(i, { notes: e.target.value })}
+                      list="logged-exercises"
+                      value={s.exercise}
+                      onChange={(e) => updateSet(i, { exercise: e.target.value })}
                     />
                   </Field>
-                </>
-              )}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSets((rows) => [...rows.slice(0, i + 1), { ...s }, ...rows.slice(i + 1)])
-                  }
-                  className="flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-secondary text-sm font-bold"
-                >
-                  <Copy size={16} /> Copy set
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSets((rows) => rows.filter((_, n) => n !== i))}
-                  className="min-h-11 px-3"
-                  aria-label={`Remove set ${i + 1}`}
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-        <GhostButton onClick={() => setSets((rows) => [...rows, emptySet()])}>
-          <span className="flex items-center justify-center gap-2">
-            <Plus size={18} /> Add set / interval
-          </span>
-        </GhostButton>
-        <button
-          type="button"
-          className="min-h-11 text-sm font-bold underline"
-          aria-expanded={advanced}
-          onClick={() => setAdvanced((v) => !v)}
-        >
-          {advanced ? "Hide" : "Show"} side, interval distance and effort
-        </button>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Full rounds">
-            <TextInput
-              type="number"
-              min="0"
-              step="1"
-              value={details.rounds ?? ""}
-              onChange={(e) => setDetail("rounds", numberOrNull(e.target.value))}
-            />
-          </Field>
-          <Field label="Score">
-            <TextInput
-              type="number"
-              min="0"
-              step="any"
-              value={details.score ?? ""}
-              onChange={(e) => setDetail("score", numberOrNull(e.target.value))}
-            />
-          </Field>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Score unit">
-            <TextInput
-              value={details.score_unit}
-              onChange={(e) => setDetail("score_unit", e.target.value)}
-            />
-          </Field>
-          <Field label="Better score">
-            <SelectInput
-              value={details.score_direction}
-              onChange={(e) => setDetail("score_direction", e.target.value as "higher" | "lower")}
-            >
-              <option value="higher">Higher</option>
-              <option value="lower">Lower</option>
-            </SelectInput>
-          </Field>
-        </div>
-        {bestScore !== null && (
-          <p className="text-sm font-semibold">
-            Comparable best: {bestScore} {details.score_unit} · same template version and variation
-          </p>
+                  {s.exercise.trim() && (
+                    <div
+                      className="text-sm text-muted-foreground"
+                      data-testid={`previous-sets-${i}`}
+                    >
+                      <p>
+                        Previous{prev ? ` · ${prettyDate(prev.date)}` : ""}:{" "}
+                        {previous.length
+                          ? previous.map(setLabel).join(" / ")
+                          : "No logged sets yet"}
+                      </p>
+                      <p className="font-bold text-fitness">PB: {best ? setLabel(best) : "—"}</p>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-3">
+                    {numeric(
+                      `Set ${i + 1} weight (kg)`,
+                      rawNumbers[`weight-${i}`] ?? (s.weight == null ? "" : String(s.weight)),
+                      (v) => {
+                        setRawNumbers((r) => ({ ...r, [`weight-${i}`]: v }));
+                        updateSet(i, { weight: numberOrNull(v) });
+                      },
+                    )}
+                    {numeric(
+                      `Set ${i + 1} reps`,
+                      rawNumbers[`reps-${i}`] ?? (s.reps == null ? "" : String(s.reps)),
+                      (v) => {
+                        setRawNumbers((r) => ({ ...r, [`reps-${i}`]: v }));
+                        updateSet(i, { reps: numberOrNull(v) });
+                      },
+                      false,
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <GhostButton
+                      aria-label={`Add set after set ${i + 1}`}
+                      onClick={() => {
+                        setRawNumbers({});
+                        patch({
+                          sets: [
+                            ...state.sets.slice(0, i + 1),
+                            nextSet(s),
+                            ...state.sets.slice(i + 1),
+                          ],
+                        });
+                      }}
+                    >
+                      <Plus size={18} className="mx-auto" />
+                    </GhostButton>
+                    <GhostButton
+                      aria-label={`Remove set ${i + 1}`}
+                      onClick={() => {
+                        setRawNumbers({});
+                        patch({ sets: state.sets.filter((_, n) => n !== i) });
+                      }}
+                    >
+                      <Trash2 size={18} className="mx-auto" />
+                    </GhostButton>
+                  </div>
+                </div>
+              );
+            })}
+            <GhostButton onClick={() => patch({ sets: [...state.sets, emptySet()] })}>
+              Add exercise
+            </GhostButton>
+          </section>
         )}
-        {!task && (
-          <Field label="Complete matching daily task">
-            <SelectInput
-              value={matchingTaskId}
-              onChange={(e) => {
-                setTaskChoice(true);
-                setTaskId(e.target.value);
-              }}
-            >
-              <option value="">No task link</option>
-              {available.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title}
-                </option>
-              ))}
-            </SelectInput>
-          </Field>
-        )}
-        <Field label="Session notes">
-          <TextArea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="What you did, conditions or anything to remember"
-          />
-        </Field>
-        <button
-          type="button"
-          className="min-h-11 text-sm font-bold underline"
-          aria-expanded={reviewOpen}
-          onClick={() => setReviewOpen((v) => !v)}
-        >
-          Review this workout
-        </button>
-        {reviewOpen &&
-          (["tough", "useful", "change", "discomfort"] as const).map((key) => (
-            <Field
-              key={key}
-              label={
-                {
-                  tough: "What was tough?",
-                  useful: "What was useful?",
-                  change: "What to change / easier or harder?",
-                  discomfort: "Any discomfort or unsuitable movements?",
-                }[key]
-              }
-            >
-              <TextArea
-                value={details.review[key]}
-                onChange={(e) => setDetail("review", { ...details.review, [key]: e.target.value })}
+        {state.slots.includes("cardio") && (
+          <section className="space-y-3">
+            <SectionTitle>Fitness</SectionTitle>
+            <Field label="Activity">
+              <TextInput
+                list="fitness-activities"
+                value={state.activity}
+                onChange={(e) => patch({ activity: e.target.value })}
               />
             </Field>
-          ))}
-        <label className="flex min-h-12 cursor-pointer items-center gap-2 rounded-2xl border p-3 text-sm font-bold">
-          <Camera size={18} /> Photos / videos
+            <datalist id="fitness-activities">
+              {FITNESS_ACTIVITIES.map((n) => (
+                <option key={n} value={n} />
+              ))}
+            </datalist>
+            {["run", "sprints"].includes(kind) && (
+              <>
+                {numeric(
+                  kind === "sprints" ? "Sprint distance (metres)" : "Distance",
+                  state.distance,
+                  (v) => patch({ distance: v }),
+                )}
+                {kind === "run" && (
+                  <Field label="Distance unit">
+                    <SelectInput
+                      value={state.unit}
+                      onChange={(e) => patch({ unit: e.target.value })}
+                    >
+                      <option value="km">km</option>
+                      <option value="miles">miles</option>
+                      <option value="m">metres</option>
+                    </SelectInput>
+                  </Field>
+                )}
+              </>
+            )}
+            {["sprints", "cindy", "circuit"].includes(kind) &&
+              numeric(
+                kind === "sprints" ? "Sets" : "Rounds",
+                state.rounds,
+                (v) => patch({ rounds: v }),
+                false,
+              )}
+            {kind === "boxing" && (
+              <Field label="What did you do?">
+                <TextArea value={state.focus} onChange={(e) => patch({ focus: e.target.value })} />
+              </Field>
+            )}
+            {kind === "circuit" && (
+              <>
+                <SectionTitle>Exercises</SectionTitle>
+                {state.circuits.map((v, i) => (
+                  <Field key={i} label={`Circuit exercise ${i + 1}`}>
+                    <TextInput
+                      value={v}
+                      onChange={(e) =>
+                        patch({
+                          circuits: state.circuits.map((x, n) => (n === i ? e.target.value : x)),
+                        })
+                      }
+                    />
+                  </Field>
+                ))}
+                <GhostButton
+                  aria-label="Add circuit exercise"
+                  onClick={() => patch({ circuits: [...state.circuits, ""] })}
+                >
+                  <Plus size={18} className="mx-auto" />
+                </GhostButton>
+              </>
+            )}
+            {!["sprints", "cindy"].includes(kind) && (
+              <Field
+                label={kind === "run" ? "Time (minutes:seconds)" : "Duration (minutes:seconds)"}
+              >
+                <TextInput
+                  value={state.time}
+                  placeholder="20:00"
+                  onChange={(e) => patch({ time: e.target.value })}
+                />
+              </Field>
+            )}
+          </section>
+        )}
+        {state.slots.includes("recovery") && (
+          <section className="space-y-3">
+            <SectionTitle>Recovery</SectionTitle>
+            <Field label="Recovery duration (minutes:seconds)">
+              <TextInput
+                value={state.recoveryTime}
+                placeholder="15:00"
+                onChange={(e) => patch({ recoveryTime: e.target.value })}
+              />
+            </Field>
+            <SectionTitle>Areas stretched</SectionTitle>
+            <div className="flex flex-wrap gap-2">
+              {[
+                "Hips / Glutes",
+                "Hamstrings",
+                "Lower back",
+                "Quads / Hip flexors",
+                "Calves / Ankles",
+                "Shoulders / Chest",
+              ].map((area) => (
+                <Chip
+                  key={area}
+                  className="min-h-12"
+                  active={state.areas.includes(area)}
+                  onClick={() =>
+                    patch({
+                      areas: state.areas.includes(area)
+                        ? state.areas.filter((a) => a !== area)
+                        : [...state.areas, area],
+                    })
+                  }
+                >
+                  {area}
+                </Chip>
+              ))}
+            </div>
+            <Field label="Other areas">
+              <TextInput
+                value={state.areas
+                  .filter(
+                    (a) =>
+                      ![
+                        "Hips / Glutes",
+                        "Hamstrings",
+                        "Lower back",
+                        "Quads / Hip flexors",
+                        "Calves / Ankles",
+                        "Shoulders / Chest",
+                      ].includes(a),
+                  )
+                  .join(", ")}
+                onChange={(e) =>
+                  patch({
+                    areas: [
+                      ...state.areas.filter((a) =>
+                        [
+                          "Hips / Glutes",
+                          "Hamstrings",
+                          "Lower back",
+                          "Quads / Hip flexors",
+                          "Calves / Ankles",
+                          "Shoulders / Chest",
+                        ].includes(a),
+                      ),
+                      ...e.target.value
+                        .split(",")
+                        .map((v) => v.trim())
+                        .filter(Boolean),
+                    ],
+                  })
+                }
+              />
+            </Field>
+            <Field label="Problem spots / tight areas">
+              <TextArea
+                value={state.problem}
+                onChange={(e) => patch({ problem: e.target.value })}
+              />
+            </Field>
+          </section>
+        )}
+        <label className="flex min-h-12 items-center gap-3 font-semibold text-sm">
+          <input
+            type="checkbox"
+            checked={state.cooldown}
+            onChange={(e) => patch({ cooldown: e.target.checked })}
+          />
+          Cooldown completed
+        </label>
+        <Field label="Session notes">
+          <TextArea value={state.notes} onChange={(e) => patch({ notes: e.target.value })} />
+        </Field>
+        <Field label="Photos / videos">
           <input
             aria-label="Training photos or videos"
             type="file"
             accept="image/*,video/*"
             multiple
-            onChange={(e) => {
-              const picked = Array.from(e.target.files ?? []);
-              if (picked.some((f) => f.size > 50 * 1024 * 1024)) {
-                setMediaError("Each attachment must be smaller than 50 MB. Choose smaller files.");
-                return;
-              }
-              setMediaError("");
-              setFiles(picked);
-              uploaded.current = [];
-            }}
-            className="min-w-0 w-full text-xs"
+            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+            className="w-full min-h-12 text-sm"
           />
-        </label>
-        {mediaError && (
-          <p role="alert" className="text-sm text-destructive">
-            {mediaError}
-          </p>
-        )}
-        {!!files.length && (
-          <p className="text-xs">{files.length} attachments, uploaded only when you save.</p>
+        </Field>
+        {draftError && (
+          <p role="alert">Your device cannot save a draft. Keep this session open until saved.</p>
         )}
         <FitnessError error={save.error} />
-        <PrimaryButton onClick={() => save.mutate()} disabled={save.isPending || !name.trim()}>
-          {save.isPending ? "Saving session…" : "Save session"}
+        <PrimaryButton
+          disabled={save.isPending || !state.slots.length}
+          onClick={() => save.mutate()}
+        >
+          {save.isPending ? "Saving…" : editing ? "Save changes" : "Save session"}
         </PrimaryButton>
-        <p className="text-xs text-muted-foreground">
-          One saved session updates history, its linked task and applicable goals. Blank sets are
-          not logged.
-        </p>
       </fieldset>
     </FormSheet>
   );
@@ -914,13 +772,14 @@ export function SessionDetail({
 }) {
   const refresh = useFitnessRefresh();
   const d = detailsOf(workout);
+  const [editOpen, setEditOpen] = useState(false);
   const [templateName, setTemplateName] = useState(workout.name);
   const [showTemplate, setShowTemplate] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const remove = useMutation({
     mutationFn: async () => {
       const { supabase } = await import("@/integrations/supabase/client");
-      const { error } = await supabase.rpc("delete_fitness_workout", { p_id: workout.id });
+      const { error } = await supabase.rpc("remove_training_log", { p_id: workout.id });
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -948,13 +807,14 @@ export function SessionDetail({
       }),
     onSuccess: refresh,
   });
+  if (editOpen) return <SessionComposer editing={workout} onClose={onClose} />;
   return (
     <FormSheet
       open
       onOpenChange={(v) => {
         if (!v) onClose();
       }}
-      title={workout.name}
+      title={sessionName(d.slots ?? [d.slot])}
     >
       <p className="text-sm text-muted-foreground">
         {prettyDate(workout.date)} · {workout.kind} · {d.variation}
@@ -981,6 +841,15 @@ export function SessionDetail({
           {d.related_workout_id ? " · linked to saved activity" : ""}
         </p>
       )}
+      {d.fitness_activity && <p className="font-bold">{d.fitness_activity}</p>}
+      {d.fitness_focus && <p>{d.fitness_focus}</p>}
+      {d.circuit_exercises?.map((v, i) => (
+        <p key={i}>{v}</p>
+      ))}
+      {d.recovery_seconds != null && <p>Recovery: {duration(d.recovery_seconds)}</p>}
+      {!!d.recovery_areas?.length && <p>{d.recovery_areas.join(" · ")}</p>}
+      {d.recovery_problem && <p>{d.recovery_problem}</p>}
+      {d.cooldown && <p>Cooldown completed</p>}
       {setsOf(workout).map((s, i) => (
         <div key={i} className="rounded-xl border p-3 text-sm">
           <p className="font-bold">
@@ -1013,6 +882,7 @@ export function SessionDetail({
             />
           );
         })}
+      <GhostButton onClick={() => setEditOpen(true)}>Edit session</GhostButton>
       <GhostButton onClick={() => setShowTemplate((v) => !v)}>
         Save as repeatable workout
       </GhostButton>
@@ -1052,11 +922,19 @@ export function FitnessSessions() {
   const history = useQuery(fitnessHistoryQuery);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<FitnessWorkout | null>(null);
+  const [resume, setResume] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const draft = readDraft() as (SessionDraft & { userId?: string }) | null;
+      setHasDraft(!!draft && draft.userId === data.user?.id);
+    });
+  }, [open]);
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
   const rows = (history.data ?? []).filter(
     (w) =>
-      (!filter || detailsOf(w).slot === filter) &&
+      (!filter || (detailsOf(w).slots ?? [detailsOf(w).slot]).includes(filter as FitnessSlot)) &&
       `${w.name} ${w.kind} ${setsOf(w)
         .map((s) => s.exercise)
         .join(" ")}`
@@ -1067,11 +945,27 @@ export function FitnessSessions() {
     <>
       <Card>
         <SectionTitle>Session history</SectionTitle>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Weights, core, neck, cardio, skills and recovery. Your earlier logs stay here.
-        </p>
+        <p className="mt-2 text-sm text-muted-foreground"></p>
         <div className="mt-3">
-          <PrimaryButton onClick={() => setOpen(true)}>Log a session</PrimaryButton>
+          <PrimaryButton
+            onClick={() => {
+              setResume(false);
+              setOpen(true);
+            }}
+          >
+            Log a session
+          </PrimaryButton>
+          {hasDraft && (
+            <GhostButton
+              className="mt-3"
+              onClick={() => {
+                setResume(true);
+                setOpen(true);
+              }}
+            >
+              Resume unfinished session
+            </GhostButton>
+          )}
         </div>
       </Card>
       <div className="grid grid-cols-2 gap-2">
@@ -1086,7 +980,9 @@ export function FitnessSessions() {
           <SelectInput value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">All training</option>
             {SLOTS.map((s) => (
-              <option key={s}>{s}</option>
+              <option key={s} value={s}>
+                {TRAINING_LABELS[s]}
+              </option>
             ))}
           </SelectInput>
         </Field>
@@ -1111,19 +1007,21 @@ export function FitnessSessions() {
           key={w.id}
           onClick={() => setView(w)}
         >
-          <p className="font-extrabold">{w.name}</p>
+          <p className="font-extrabold">{sessionName(detailsOf(w).slots ?? [detailsOf(w).slot])}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {prettyDate(w.date)} · {w.kind} · {w.exercise_sets.length} sets
+            {prettyDate(w.date)}
+            {detailsOf(w).fitness_activity ? ` · ${detailsOf(w).fitness_activity}` : ""} ·{" "}
+            {w.exercise_sets.length} sets
           </p>
           {detailsOf(w).distance_m !== null && (
             <p className="mt-2 text-sm">
-              {distanceUnits(detailsOf(w).distance_m!, "km").toFixed(2)} km ·{" "}
+              {distanceUnits(detailsOf(w).distance_m ?? 0, "km").toFixed(2)} km ·{" "}
               {duration(detailsOf(w).duration_seconds)}
             </p>
           )}
         </button>
       ))}
-      {open && <SessionComposer onClose={() => setOpen(false)} />}
+      {open && <SessionComposer resume={resume} onClose={() => setOpen(false)} />}
       {view && <SessionDetail workout={view} onClose={() => setView(null)} />}
     </>
   );
