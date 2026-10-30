@@ -1603,6 +1603,7 @@ export type Database = {
         }
         Returns: string
       }
+      remove_training_log: { Args: { p_id: string }; Returns: undefined }
       save_fitness_workout: {
         Args: {
           p_id: string

@@ -43,6 +43,13 @@
       "when": 1793403907879,
       "tag": "0005_training_log_atomic_edits",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793404185881,
+      "tag": "0006_training_log_delete_rewards",
+      "breakpoints": true
     }
   ]
 }
