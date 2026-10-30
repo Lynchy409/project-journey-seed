@@ -280,7 +280,7 @@ export function goalValue(
       (!t.start || w.date >= t.start) &&
       (!t.end || w.date <= t.end) &&
       (!t.kind || w.kind === t.kind) &&
-      (!t.slot || detailsOf(w).slot === t.slot) &&
+      (!t.slot || (detailsOf(w).completed_slots ?? [detailsOf(w).slot]).includes(t.slot as FitnessSlot)) &&
       (!t.variation || detailsOf(w).variation === t.variation) &&
       (!t.template_id || detailsOf(w).template_id === t.template_id) &&
       (!t.template_version || detailsOf(w).template_version === t.template_version),
@@ -468,40 +468,13 @@ export async function updateFitnessWorkout(
   },
 ) {
   validateSession(input.name, input.date, input.details, input.sets);
-  const user_id = await uid();
-  const { error } = await supabase
-    .from("workouts")
-    .update({
-      name: input.name.trim(),
-      date: input.date,
-      kind: input.kind,
-      notes: input.notes || null,
-      details: input.details as unknown as Json,
-      media: (input.media ?? []) as unknown as Json,
-    })
-    .eq("id", workout.id);
+  const { error } = await supabase.rpc('commit_training_log', {
+    p_id: workout.id,
+    p_workout: { ...input, media: input.media ?? workout.media ?? [] } as unknown as Json,
+    p_sets: input.sets as unknown as Json,
+    p_edit: true,
+  });
   if (error) throw error;
-  const oldIds = workout.exercise_sets.map((s) => s.id);
-  if (input.sets.length) {
-    const rows = input.sets.map((s, n) => {
-      const { exercise, weight, reps, ...rest } = s;
-      return {
-        user_id,
-        workout_id: workout.id,
-        exercise: exercise.trim(),
-        weight,
-        reps,
-        set_index: n + 1,
-        details: rest as unknown as Json,
-      };
-    });
-    const { error: insErr } = await supabase.from("exercise_sets").insert(rows);
-    if (insErr) throw insErr;
-  }
-  if (oldIds.length) {
-    const { error: delErr } = await supabase.from("exercise_sets").delete().in("id", oldIds);
-    if (delErr) throw delErr;
-  }
 }
 export async function saveFitnessTemplate(
   input: Pick<FitnessTemplate, "name" | "slot" | "kind" | "payload"> & {

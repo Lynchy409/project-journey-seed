@@ -48,6 +48,7 @@ import { goalsQuery } from "@/lib/goals";
 import type { FitnessDatabase, FitnessTask, FitnessTemplate } from "@/lib/fitness-types";
 import type { Json } from "@/integrations/supabase/types";
 import { MOVEMENTS } from "@/lib/fitness-library";
+import { ExerciseHistory } from './ExerciseHistory';
 
 function TaskChooser({ task, onClose }: { task: FitnessTask; onClose: () => void }) {
   const templates = useQuery(fitnessTemplatesQuery);
@@ -829,7 +830,7 @@ export function FitnessHub({
   records: ReactNode;
   body: ReactNode;
 }) {
-  const [tab, setTab] = useState("Today");
+  const [tab, setTab] = useState("Sessions");
   const [libraryTab, setLibraryTab] = useState("Workouts");
   const [progressTab, setProgressTab] = useState("Goals");
   return (
@@ -837,10 +838,11 @@ export function FitnessHub({
       <Tabs
         value={tab}
         onChange={setTab}
-        options={["Today", "Sessions", "Library", "Plans", "Progress"]}
+        options={["Sessions", "Exercises"]}
       />
       {tab === "Today" && <Overview />}
       {tab === "Sessions" && <FitnessSessions />}
+      {tab === "Exercises" && <ExerciseHistory />}
       {tab === "Library" && (
         <>
           <Tabs
