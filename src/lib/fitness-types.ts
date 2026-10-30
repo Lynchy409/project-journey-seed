@@ -15,6 +15,15 @@ export type FitnessSet = {
 };
 export type WorkoutDetails = {
   slot: FitnessSlot;
+  slots?: FitnessSlot[];
+  completed_slots?: FitnessSlot[];
+  fitness_activity?: string;
+  fitness_focus?: string;
+  circuit_exercises?: string[];
+  cooldown?: boolean;
+  recovery_seconds?: number | null;
+  recovery_areas?: string[];
+  recovery_problem?: string;
   duration_seconds: number | null;
   distance_m: number | null;
   rounds: number | null;

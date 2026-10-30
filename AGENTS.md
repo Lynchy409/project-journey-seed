@@ -10,3 +10,5 @@
 <!-- LOVABLE:END -->
 
 - ¡Escapa! levels declare either corridor or chase gameplay in level data, so course progression can vary pace without splitting the game.
+- Training logs retain one workout with multiple sections in details JSON; completed sections drive task/XP linkage, so mixed sessions are not duplicated.
+- Training saves and edits use an authenticated atomic database function; edits retain the workout ID and failures preserve prior sets.
