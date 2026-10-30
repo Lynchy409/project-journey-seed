@@ -271,7 +271,7 @@ export function SessionDetail({
   const remove = useMutation({
     mutationFn: async () => {
       const { supabase } = await import("@/integrations/supabase/client");
-      const { error } = await supabase.rpc("delete_fitness_workout", { p_id: workout.id });
+      const { error } = await supabase.rpc("remove_training_log", { p_id: workout.id });
       if (error) throw error;
     },
     onSuccess: async () => {
