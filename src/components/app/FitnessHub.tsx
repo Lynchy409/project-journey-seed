@@ -831,51 +831,8 @@ export function FitnessHub({
   body: ReactNode;
 }) {
   const [tab, setTab] = useState("Sessions");
-  const [libraryTab, setLibraryTab] = useState("Workouts");
-  const [progressTab, setProgressTab] = useState("Goals");
-  return (
-    <>
-      <Tabs
-        value={tab}
-        onChange={setTab}
-        options={["Sessions", "Exercises"]}
-      />
-      {tab === "Today" && <Overview />}
-      {tab === "Sessions" && <FitnessSessions />}
-      {tab === "Exercises" && <ExerciseHistory />}
-      {tab === "Library" && (
-        <>
-          <Tabs
-            value={libraryTab}
-            onChange={setLibraryTab}
-            options={["Workouts", "Movements", "Timed routines"]}
-          />
-          {libraryTab === "Workouts" ? (
-            <SavedWorkouts />
-          ) : libraryTab === "Movements" ? (
-            <MovementLibrary />
-          ) : (
-            routines
-          )}
-        </>
-      )}
-      {tab === "Plans" && <FitnessPlans />}
-      {tab === "Progress" && (
-        <>
-          <Tabs
-            value={progressTab}
-            onChange={setProgressTab}
-            options={["Goals", "Lift records", "Body"]}
-          />
-          {progressTab === "Goals" ? (
-            <FitnessGoals />
-          ) : progressTab === "Lift records" ? (
-            records
-          ) : (
-            body
-          )}
-        </>
-      )}
-    </>
-  );
+  return <>
+    <Tabs value={tab} onChange={setTab} options={["Sessions", "Exercises"]} />
+    {tab === "Sessions" ? <FitnessSessions /> : <ExerciseHistory />}
+  </>;
 }
