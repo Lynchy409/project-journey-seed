@@ -185,14 +185,14 @@ export function SessionComposer({ onClose, task, template, initialSlot, movement
    if (!selected.length) throw new Error('Choose a session type.');
    const sets = selected.includes('strength') ? state.sets.filter(s => s.exercise.trim() && (s.weight != null || s.reps != null || s.seconds != null)) : [];
    if (selected.includes('strength') && state.sets.some(s => !s.exercise.trim() && (s.weight != null || s.reps != null))) throw new Error('Name each completed exercise.');
-   const fitnessTime = selected.includes('cardio') ? parseDuration(state.time) : null;
+   const fitnessTime = selected.includes('cardio') && !['sprints','cindy'].includes(kind) ? parseDuration(state.time) : null;
    const recoverySeconds = selected.includes('recovery') ? parseDuration(state.recoveryTime) : null;
    const metres = selected.includes('cardio') && ['run','sprints'].includes(kind) ? (state.distance.trim() ? distanceMetres(Number(state.distance), kind==='sprints' ? 'm' : state.unit) : null) : null;
    const rounds = selected.includes('cardio') && ['sprints','circuit','cindy'].includes(kind) ? numberOrNull(state.rounds) : null;
    const cardioDone = selected.includes('cardio') && !!state.activity.trim() && !!(fitnessTime || metres || rounds);
    const completed: FitnessSlot[] = [...(sets.length ? ['strength' as const] : []), ...(cardioDone ? ['cardio' as const] : []), ...(recoverySeconds ? ['recovery' as const] : [])];
    for (const slot of selected) if (!completed.includes(slot)) throw new Error(`Enter your completed ${TRAINING_LABELS[slot].toLowerCase()} results, or deselect it.`);
-   const full: WorkoutDetails = {...d, slot: completed[0] ?? 'strength', slots:selected, completed_slots:completed, fitness_activity:state.activity, fitness_focus:state.focus, circuit_exercises:state.circuits.filter(v=>v.trim()), cooldown:state.cooldown, recovery_seconds:recoverySeconds, recovery_areas:state.areas, recovery_problem:state.problem, duration_seconds:fitnessTime ?? recoverySeconds, distance_m:metres, rounds, routine_id: routineId ?? d.routine_id, win_id: winId ?? d.win_id};
+   const full: WorkoutDetails = {...d, slot: completed[0] ?? 'strength', slots:selected, completed_slots:completed, fitness_activity:state.activity, fitness_focus:state.focus, circuit_exercises:state.circuits.filter(v=>v.trim()), cooldown:state.cooldown, recovery_seconds:recoverySeconds, recovery_areas:state.areas, recovery_problem:state.problem, duration_seconds:fitnessTime ?? (selected.includes('cardio') ? null : recoverySeconds), distance_m:metres, rounds, routine_id: routineId ?? d.routine_id, win_id: winId ?? d.win_id};
    const input = {name:sessionName(selected), date:state.date, kind:cardioDone ? kind : selected.includes('strength') ? 'gym' : 'recovery', notes:state.notes, details:full, sets, media: Array.isArray(editing?.media) ? editing.media as {url:string;type:string}[] : []};
    validateSession(input.name,input.date,full,sets);
    for (const file of files.slice(uploaded.current.length)) uploaded.current.push(await uploadWorkoutMedia(file));
@@ -430,7 +430,7 @@ export function FitnessSessions() {
       <Card>
         <SectionTitle>Session history</SectionTitle>
         <p className="mt-2 text-sm text-muted-foreground">
-          Weights, core, neck, cardio, skills and recovery. Your earlier logs stay here.
+
         </p>
         <div className="mt-3">
           <PrimaryButton onClick={() => { setResume(false); setOpen(true); }}>Log a session</PrimaryButton>
@@ -476,7 +476,7 @@ export function FitnessSessions() {
         >
           <p className="font-extrabold">{w.name}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {prettyDate(w.date)} · {w.kind} · {w.exercise_sets.length} sets
+            {prettyDate(w.date)}{detailsOf(w).fitness_activity ? ` · ${detailsOf(w).fitness_activity}` : ''} · {w.exercise_sets.length} sets
           </p>
           {detailsOf(w).distance_m !== null && (
             <p className="mt-2 text-sm">
