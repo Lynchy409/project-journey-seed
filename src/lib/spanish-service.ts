@@ -157,10 +157,10 @@ export async function runSpanishService(
         );
       }
     }
+    // One pass only: the old draft + review double call doubled the wait for every reply.
     stage = "draft";
-    const draft = await call(setup.model, instructions, request);
-    stage = "review";
-    const result = await call(setup.reviewModel, reviewInstructions, { request, draft });
+    const result = await call(setup.model, instructions, request);
+    void reviewInstructions;
     return { ok: true, result };
   } catch (error) {
     if (error instanceof ServiceFailure)
