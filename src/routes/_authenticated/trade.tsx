@@ -271,56 +271,162 @@ function BiasTab() {
 
 /* ----------------------------------- log ---------------------------------- */
 
+type AccountFilter = "all" | "forexcom" | "spreadex" | "challenge" | "demo";
+
 function LogTab() {
   const qc = useQueryClient();
-  const { data: trades } = useQuery(tradesQuery);
+  const { data: allTrades } = useQuery(tradesQuery);
+  const { data: challenges } = useQuery(challengesQuery);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TradeRow | null>(null);
   const [recapOpen, setRecapOpen] = useState(false);
-  const stats = tradeStats((trades ?? []).filter((t) => (t.source ?? "live") === "live"));
+  const [account, setAccount] = useState<AccountFilter>("all");
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [chOpen, setChOpen] = useState(false);
+  const [chEditing, setChEditing] = useState<Challenge | null>(null);
+
+  const activeChallenge =
+    challenges?.find((c) => c.id === challengeId) ?? challenges?.[0] ?? null;
+  const trades = (allTrades ?? []).filter((t) => {
+    const a = accountOf(t.source);
+    if (a.kind === "backtest") return false;
+    if (account === "all") return a.kind !== "demo";
+    if (account === "challenge") return a.challengeId === activeChallenge?.id;
+    return a.kind === account;
+  });
+  const stats = cashStats(trades);
+  const curve = equityCurve(trades);
+  const currency = account === "challenge" ? (activeChallenge?.currency ?? "GBP") : "GBP";
+  const defaultSource =
+    account === "all"
+      ? "forexcom"
+      : account === "challenge"
+        ? `challenge:${activeChallenge?.id ?? ""}`
+        : account;
 
   const remove = useMutation({
     mutationFn: deleteTrade,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["trades"] }),
   });
 
+  const filters: { value: AccountFilter; label: string }[] = [
+    { value: "all", label: "All live" },
+    ...ACCOUNTS,
+  ];
+
   return (
     <>
-      <Card>
-        <div className="grid grid-cols-3 gap-2">
-          <Stat label="Trades" value={stats.count} />
-          <Stat label="Win rate" value={`${stats.winRate}%`} tone="text-trading" />
-          <Stat
-            label="Total R"
-            value={stats.totalR}
-            tone={stats.totalR >= 0 ? "text-trading" : "text-destructive"}
-          />
-        </div>
-        <div className="mt-3 space-y-2">
-          <PrimaryButton
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {filters.map((a) => (
+          <Chip
+            key={a.value}
+            active={account === a.value}
+            onClick={() => setAccount(a.value)}
+            className="whitespace-nowrap"
           >
-            <span className="flex items-center justify-center gap-2">
-              <Plus className="h-5 w-5" /> Log a trade
-            </span>
-          </PrimaryButton>
+            {a.label}
+          </Chip>
+        ))}
+      </div>
+
+      {account === "challenge" && (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {challenges?.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setChallengeId(c.id)}
+              className={`h-10 whitespace-nowrap rounded-full border-2 px-4 text-sm font-bold ${
+                activeChallenge?.id === c.id
+                  ? "border-trading bg-trading-soft text-trading"
+                  : "border-transparent bg-secondary text-muted-foreground"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
           <button
             type="button"
-            onClick={() => setRecapOpen(true)}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-trading bg-trading-soft text-sm font-bold text-trading"
+            onClick={() => {
+              setChEditing(null);
+              setChOpen(true);
+            }}
+            className="flex h-10 items-center gap-1 whitespace-nowrap rounded-full border-2 border-dashed px-4 text-sm font-bold text-muted-foreground"
           >
-            <Sunrise className="h-5 w-5" /> London session recap
+            <Plus className="h-4 w-4" /> New challenge
           </button>
         </div>
-      </Card>
-      <RecapSheet open={recapOpen} onOpenChange={setRecapOpen} />
+      )}
 
-      {!trades?.length ? (
+      {account === "challenge" && !activeChallenge ? (
         <Card>
-          <Empty>No trades logged yet.</Empty>
+          <Empty>Add your first challenge: set the target and drawdown rules once.</Empty>
+        </Card>
+      ) : account === "challenge" && activeChallenge ? (
+        <ChallengeCard
+          challenge={activeChallenge}
+          status={challengeStatus(activeChallenge, trades, todayISO())}
+          onEdit={() => {
+            setChEditing(activeChallenge);
+            setChOpen(true);
+          }}
+        />
+      ) : null}
+
+      {!(account === "challenge" && !activeChallenge) && (
+        <Card>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Net P&L
+          </p>
+          <p
+            className={`mt-1 text-4xl font-extrabold leading-none ${
+              stats.net >= 0 ? "text-trading" : "text-destructive"
+            }`}
+          >
+            {money(stats.net, currency)}
+          </p>
+          <div className="mt-3">
+            <EquityCurve points={curve} currency={currency} />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Stat label="Trades" value={stats.trades} />
+            <Stat label="Win rate" value={`${stats.winRate}%`} tone="text-trading" />
+            <Stat
+              label="Total R"
+              value={stats.totalR}
+              tone={stats.totalR >= 0 ? "text-trading" : "text-destructive"}
+            />
+          </div>
+          <div className="mt-3 space-y-2">
+            <PrimaryButton
+              onClick={() => {
+                setEditing(null);
+                setOpen(true);
+              }}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <Plus className="h-5 w-5" /> Log a trade
+              </span>
+            </PrimaryButton>
+            <GhostButton onClick={() => setRecapOpen(true)}>
+              <span className="flex items-center justify-center gap-2">
+                <Sunrise className="h-4 w-4" /> London session recap
+              </span>
+            </GhostButton>
+          </div>
+        </Card>
+      )}
+      <RecapSheet open={recapOpen} onOpenChange={setRecapOpen} />
+      <ChallengeSheet
+        open={chOpen}
+        onOpenChange={setChOpen}
+        challenge={chEditing}
+        onSaved={() => setAccount("challenge")}
+      />
+
+      {!trades.length ? (
+        <Card>
+          <Empty>No trades in this account yet.</Empty>
         </Card>
       ) : (
         trades.map((t) => (
