@@ -156,10 +156,6 @@ function Today() {
       </div>
 
       <DailyDrivers date={date} />
-      <FitnessDailyTasks compact initialDate={date} />
-      <SpanishDailyTasks date={date} />
-      {fitnessSlot && <FitnessQuickLog slot={fitnessSlot} date={date} onClose={() => setFitnessSlot(null)} />}
-
 
       {lesson && (
         <Card>
@@ -170,58 +166,6 @@ function Today() {
           </p>
         </Card>
       )}
-
-      <Card>
-        <SectionTitle
-          action={
-            <Link to="/plan" className="text-xs font-bold text-muted-foreground">
-              Edit plan
-            </Link>
-          }
-        >
-          Today's plan
-        </SectionTitle>
-        {tasks.length === 0 ? (
-          <Empty>No tasks for a {dayLabel.toLowerCase()} day yet. Add some in Plan.</Empty>
-        ) : (
-          <ul className="mt-3 space-y-2">
-            {tasks.map((t) => {
-              const done = isTaskDone(t);
-              const linkedSlot = t.pillar === "fitness" ? trainingSlotForTask(t.title) : null;
-              const p = (t.pillar as Pillar) in PILLARS ? (t.pillar as Pillar) : "life";
-              return (
-                <li key={t.id}>
-                  <button
-                    onClick={() => isSpanishSlot(t) ? void navigate({ to: "/learn", search: { area: "spanish" } }) : linkedSlot ? setFitnessSlot(linkedSlot) : toggle.mutate(t)}
-                    className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition-all active:scale-[0.99] ${
-                      done ? "border-transparent bg-secondary" : "bg-card"
-                    }`}
-                  >
-                    <span
-                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl transition-all ${
-                        done ? `${PILLARS[p].bg} text-primary-foreground scale-105` : "bg-secondary"
-                      }`}
-                    >
-                      {done && <Check className="h-5 w-5" strokeWidth={3} />}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className={`block text-base font-bold leading-tight ${done ? "text-muted-foreground line-through" : ""}`}>
-                        {spanishIsConfigured && isSpanishSlot(t) ? "Daily Spanish minimum" : t.title}
-                      </span>
-                      <span className={`text-xs font-bold ${PILLARS[p].text}`}>
-                        {PILLARS[p].label}
-                        {t.non_negotiable ? " · non-negotiable" : ""}
-                        {linkedSlot ? " · uses training log" : ""}
-                        {isSpanishSlot(t) ? " · uses Spanish activities" : ""}
-                      </span>
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
 
       <LittleWins compact />
 
