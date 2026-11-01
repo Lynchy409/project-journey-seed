@@ -35,7 +35,9 @@ export function lifeFlight(birthISO: string, now = new Date()) {
   const lived = Math.max(0, Math.floor((now.getTime() - birth.getTime()) / 86400000));
   const total = Math.floor((end.getTime() - birth.getTime()) / 86400000);
   const ahead = Math.max(0, total - lived);
-  const age = Math.floor(lived / 365.25);
+  let age = now.getFullYear() - birth.getFullYear();
+  const bd = new Date(birth); bd.setFullYear(now.getFullYear());
+  if (now < bd) age--;
   return { lived, ahead, total, age, pct: Math.min(100, (lived / total) * 100) };
 }
 
