@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/app/AppShell";
 import { Field, FormSheet, GhostButton, PrimaryButton, TextArea } from "@/components/app/ui";
 import { BoxBreath } from "@/components/app/BoxBreath";
-import { DRIVERS, TIER_LABELS, clearDriver, driverLogsQuery, driverXp, saveDriver, tierFor, type Driver } from "@/lib/drivers";
+import { DRIVERS, TIER_LABELS, clearDriver, driverLogsQuery, driverXp, isWeekend, saveDriver, tierFor, type Driver } from "@/lib/drivers";
 import { OUTCOMES, parseOutcome, type TradeOutcome } from "@/lib/xp";
 
 function HoldTimer({ onStop }: { onStop: (s: number) => void }) {
@@ -67,7 +67,8 @@ export function DailyDrivers({ date }: { date: string }) {
   const byKey = new Map((logs ?? []).map((l) => [l.driver_key, l]));
   // Fitness and Spanish now use structured tasks and activities. Preserve old logged evidence,
   // but do not offer a second, unrelated text-only completion for the same activity.
-  const visibleDrivers = DRIVERS.filter(d => (d.tag !== "Train" && d.key !== "spanish") || byKey.has(d.key));
+  const weekend = isWeekend(date);
+  const visibleDrivers = DRIVERS.filter(d => byKey.has(d.key) || (d.tag !== "Train" && d.key !== "spanish" && !(weekend && d.key === "trading")));
   const done = visibleDrivers.filter((d) => byKey.has(d.key)).length;
   const total = visibleDrivers.length;
   const tier = tierFor(done);

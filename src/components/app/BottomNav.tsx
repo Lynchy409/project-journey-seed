@@ -1,9 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Sun, CalendarDays, CandlestickChart, Dumbbell, BookOpen, Sparkles } from "lucide-react";
+import { Sun, CandlestickChart, Dumbbell, BookOpen, Sparkles } from "lucide-react";
 
 const TABS = [
   { to: "/today", label: "Today", icon: Sun },
-  { to: "/plan", label: "Plan", icon: CalendarDays },
   { to: "/trade", label: "Trade", icon: CandlestickChart },
   { to: "/train", label: "Train", icon: Dumbbell },
   { to: "/learn", label: "Learn", icon: BookOpen },
