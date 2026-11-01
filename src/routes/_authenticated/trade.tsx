@@ -113,13 +113,12 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab = "log" | "journal" | "news" | "cal" | "tools";
+type Tab = "log" | "journal" | "news" | "tools";
 
 const TABS: { value: Tab; label: string; title: string }[] = [
   { value: "log", label: "Log", title: "Trade log" },
   { value: "journal", label: "Journal", title: "Trade journal" },
   { value: "news", label: "News", title: "News & wisdom" },
-  { value: "cal", label: "Calendar", title: "Trading calendar" },
   { value: "tools", label: "Tools", title: "Rules & calculator" },
 ];
 
@@ -131,7 +130,7 @@ function Trade() {
   }, [requestedTab]);
   return (
     <AppShell eyebrow="Trading" title={TABS.find((t) => t.value === tab)!.title}>
-      <div className="grid grid-cols-5 gap-1 rounded-full bg-secondary p-1">
+      <div className="grid grid-cols-4 gap-1 rounded-full bg-secondary p-1">
         {TABS.map((t) => (
           <button
             key={t.value}
@@ -147,9 +146,13 @@ function Trade() {
         ))}
       </div>
       {tab === "log" && <LogTab />}
-      {tab === "journal" && <TradeJournal lessons={<LessonsTab />} />}
+      {tab === "journal" && (
+        <>
+          <TradeCalendar />
+          <TradeJournal lessons={<LessonsTab />} />
+        </>
+      )}
       {tab === "news" && <NewsWisdom calendar={<NewsTab />} />}
-      {tab === "cal" && <TradeCalendar />}
       {tab === "tools" && (
         <>
           <RulesTab />
