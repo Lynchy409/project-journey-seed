@@ -2495,6 +2495,7 @@ function newsDayLabel(key: string, isToday: boolean): string {
 }
 
 function NewsTab() {
+  const [showPast, setShowPast] = useState(false);
   const { data, isLoading, isError, refetch, isRefetching, dataUpdatedAt } = useQuery({
     queryKey: ["ff-news"],
     queryFn: () => getNewsEvents(),
@@ -2540,11 +2541,6 @@ function NewsTab() {
           {isRefetching ? "…" : "Refresh"}
         </button>
       </Card>
-      <p className="px-1 text-xs text-muted-foreground">
-        Calendar loaded{" "}
-        {new Date(dataUpdatedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })} UK time.
-        Provider cache: up to 30 minutes. Ratings and forecasts are third-party estimates.
-      </p>
       {!data.some((e) => Date.parse(e.instant) > now) && (
         <Card>
           <p className="text-sm">
@@ -2562,7 +2558,17 @@ function NewsTab() {
         </Card>
       )}
       {days.size === 0 && <Empty>No high or medium impact events this week.</Empty>}
+      {[...days.keys()].some((k) => k < todayKey) && (
+        <button
+          type="button"
+          onClick={() => setShowPast((v) => !v)}
+          className="min-h-11 px-1 text-sm font-bold text-trading"
+        >
+          {showPast ? "Hide earlier this week" : "Show earlier this week"}
+        </button>
+      )}
       {[...days.entries()]
+        .filter(([key]) => showPast || key >= todayKey)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, events]) => {
           const isToday = key === todayKey;
