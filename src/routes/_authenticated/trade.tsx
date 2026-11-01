@@ -441,6 +441,13 @@ function LogTab() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {cashOf(t) != null && (
+                  <span
+                    className={`text-base font-extrabold ${cashOf(t)! >= 0 ? "text-trading" : "text-destructive"}`}
+                  >
+                    {money(cashOf(t)!, "GBP")}
+                  </span>
+                )}
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                     t.outcome === "win"
@@ -478,11 +485,9 @@ function LogTab() {
               {STRATEGIES.find((s) => s.value === t.strategy)?.label ?? t.strategy}
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {t.source && t.source !== "live" && (
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold uppercase text-muted-foreground">
-                  {t.source}
-                </span>
-              )}
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+                {accountLabel(t.source, challenges)}
+              </span>
               {t.setup && (
                 <span className="rounded-full bg-trading-soft px-2 py-0.5 text-[11px] font-bold text-trading">
                   {SETUPS.find((s) => s.value === t.setup)?.label ?? t.setup}
@@ -555,7 +560,7 @@ function LogTab() {
         ))
       )}
 
-      <TradeSheet open={open} onOpenChange={setOpen} trade={editing} />
+      <TradeSheet open={open} onOpenChange={setOpen} trade={editing} defaultSource={defaultSource} />
     </>
   );
 }
