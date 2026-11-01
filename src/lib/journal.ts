@@ -6,6 +6,13 @@ import type { Pillar } from "./pillars";
 
 export type EntryType = "reflection" | "lesson" | "trade_review" | "session_note" | "weekly_review";
 
+/** Labels for trade-journal note types, shown when they appear in the main journal. */
+export const EXTRA_ENTRY_LABELS: Record<string, string> = {
+  market_note: "Market observation",
+  trade_thought: "Trade thought",
+  backtest_idea: "Backtest idea",
+};
+
 export const ENTRY_TYPES: { value: EntryType; label: string }[] = [
   { value: "reflection", label: "Reflection" },
   { value: "lesson", label: "Lesson" },
@@ -20,6 +27,7 @@ export const journalQuery = queryOptions({
     const { data, error } = await supabase
       .from("journal_entries")
       .select("*")
+      .not("entry_type", "in", "(trade_challenge,wisdom_read)")
       .order("date", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw error;
