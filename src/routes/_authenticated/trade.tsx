@@ -700,21 +700,47 @@ function TradeSheet({
 
   return (
     <FormSheet open={open} onOpenChange={onOpenChange} title={trade ? "Edit trade" : "Log a trade"}>
-      <FormSection>Basics</FormSection>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Date">
-          <TextInput type="date" value={f.date} onChange={(e) => set("date", e.target.value)} />
-        </Field>
-        <Field label="Source">
+      <FormSection>Account</FormSection>
+      <div className="grid grid-cols-4 gap-1.5">
+        {ACCOUNTS.map((a) => {
+          const kind = accountOf(f.source).kind;
+          return (
+            <Chip
+              key={a.value}
+              active={kind === a.value}
+              onClick={() =>
+                set("source", a.value === "challenge" ? `challenge:${challenges?.[0]?.id ?? ""}` : a.value)
+              }
+              className="!px-1 text-xs"
+            >
+              {a.label}
+            </Chip>
+          );
+        })}
+      </div>
+      {accountOf(f.source).kind === "challenge" &&
+        (challenges?.length ? (
           <SelectInput value={f.source} onChange={(e) => set("source", e.target.value)}>
-            {SOURCES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
+            {challenges.map((c) => (
+              <option key={c.id} value={`challenge:${c.id}`}>
+                {c.name}
               </option>
             ))}
           </SelectInput>
-        </Field>
-      </div>
+        ) : (
+          <p className="text-xs font-semibold text-muted-foreground">
+            Add a challenge from the Challenges view first.
+          </p>
+        ))}
+      {(f.source === "live" || f.source === "backtest") && (
+        <p className="text-xs font-semibold text-muted-foreground">
+          Older trade saved as “{f.source}”. Pick an account to move it.
+        </p>
+      )}
+      <FormSection>Basics</FormSection>
+      <Field label="Date">
+        <TextInput type="date" value={f.date} onChange={(e) => set("date", e.target.value)} />
+      </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Time of trade">
           <TextInput
@@ -1021,6 +1047,35 @@ function TradeSheet({
               {o}
             </Chip>
           ))}
+        </div>
+      </Field>
+      <Field label="Cash P&L">
+        <div className="flex gap-2">
+          <div className="flex shrink-0 rounded-2xl bg-secondary p-1">
+            <button
+              type="button"
+              aria-pressed={f.cash_sign === "+"}
+              onClick={() => set("cash_sign", "+")}
+              className={`h-10 w-12 rounded-xl text-lg font-extrabold ${f.cash_sign === "+" ? "bg-trading text-primary-foreground" : "text-muted-foreground"}`}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              aria-pressed={f.cash_sign === "-"}
+              onClick={() => set("cash_sign", "-")}
+              className={`h-10 w-12 rounded-xl text-lg font-extrabold ${f.cash_sign === "-" ? "bg-destructive text-primary-foreground" : "text-muted-foreground"}`}
+            >
+              −
+            </button>
+          </div>
+          <TextInput
+            inputMode="decimal"
+            value={f.cash}
+            onChange={(e) => set("cash", e.target.value.replace(/[^0-9.]/g, ""))}
+            placeholder="e.g. 250"
+            className={f.cash ? (f.cash_sign === "+" ? "text-trading" : "text-destructive") : ""}
+          />
         </div>
       </Field>
       <Field label="Result in R">
