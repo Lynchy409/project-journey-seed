@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { Plus, NotebookPen, Briefcase, Dumbbell, CandlestickChart, BookOpen, Scale } from "lucide-react";
+import { Plus, NotebookPen, Dumbbell, CandlestickChart, BookOpen, Scale } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 const ITEMS = [
   { label: "Journal", icon: NotebookPen, cls: "bg-life-soft text-life", to: "/journal" as const },
-  { label: "Shift", icon: Briefcase, cls: "bg-secondary text-foreground", to: "/plan" as const },
   { label: "Workout", icon: Dumbbell, cls: "bg-fitness-soft text-fitness", to: "/train" as const },
   { label: "Trade", icon: CandlestickChart, cls: "bg-trading-soft text-trading", to: "/trade" as const },
   { label: "Learning", icon: BookOpen, cls: "bg-learning-soft text-learning", to: "/learn" as const },

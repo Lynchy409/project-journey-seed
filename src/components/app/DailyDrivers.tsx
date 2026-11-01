@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Card } from "@/components/app/AppShell";
 import { Field, FormSheet, GhostButton, PrimaryButton, TextArea } from "@/components/app/ui";
 import { BoxBreath } from "@/components/app/BoxBreath";
-import { DRIVERS, TIER_LABELS, clearDriver, driverLogsQuery, driverXp, saveDriver, tierFor, type Driver } from "@/lib/drivers";
+import { DRIVERS, TIER_LABELS, clearDriver, driverLogsQuery, driverXp, isWeekend, saveDriver, tierFor, type Driver } from "@/lib/drivers";
 import { OUTCOMES, parseOutcome, type TradeOutcome } from "@/lib/xp";
 
 function HoldTimer({ onStop }: { onStop: (s: number) => void }) {
