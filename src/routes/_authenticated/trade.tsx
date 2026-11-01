@@ -1,5 +1,21 @@
 import { TradeCalendar } from "@/components/app/TradeCalendar";
-import { MarketHub, LearningLink } from "@/components/app/MarketHub";
+import { LearningLink } from "@/components/app/MarketHub";
+import { TradeJournal } from "@/components/app/trade/TradeJournal";
+import { NewsWisdom } from "@/components/app/trade/NewsWisdom";
+import { EquityCurve } from "@/components/app/trade/EquityCurve";
+import { ChallengeCard, ChallengeSheet } from "@/components/app/trade/ChallengeCard";
+import {
+  ACCOUNTS,
+  accountLabel,
+  accountOf,
+  cashOf,
+  cashStats,
+  challengeStatus,
+  challengesQuery,
+  equityCurve,
+  money,
+  type Challenge,
+} from "@/lib/trade-accounts";
 import { classifyMarketTopic, MARKET_CONTEXT } from "@/lib/market-context";
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -97,87 +113,49 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab =
-  | "bias"
-  | "inspect"
-  | "log"
-  | "edge"
-  | "cal"
-  | "rules"
-  | "plan"
-  | "backtest"
-  | "lessons"
-  | "news"
-  | "calc";
+type Tab = "log" | "journal" | "news" | "cal" | "tools";
 
-const TAB_TITLES: Record<Tab, string> = {
-  bias: "Bias tracker",
-  inspect: "Market inspection",
-  log: "Trade log",
-  edge: "Edge finder",
-  cal: "Trading calendar",
-  rules: "My rules",
-  plan: "Trading plan",
-  backtest: "Backtests",
-  lessons: "My lessons",
-  news: "News",
-  calc: "Lot size calculator",
-};
+const TABS: { value: Tab; label: string; title: string }[] = [
+  { value: "log", label: "Log", title: "Trade log" },
+  { value: "journal", label: "Journal", title: "Trade journal" },
+  { value: "news", label: "News", title: "News & wisdom" },
+  { value: "cal", label: "Calendar", title: "Trading calendar" },
+  { value: "tools", label: "Tools", title: "Rules & calculator" },
+];
 
 function Trade() {
   const { tab: requestedTab } = Route.useSearch();
-  const [tab, setTab] = useState<Tab>(requestedTab ?? "bias");
+  const [tab, setTab] = useState<Tab>(requestedTab ?? "log");
   useEffect(() => {
     if (requestedTab) setTab(requestedTab);
   }, [requestedTab]);
   return (
-    <AppShell eyebrow="Trading" title={TAB_TITLES[tab]}>
-      <div className="flex flex-wrap gap-2">
-        <Chip active={tab === "bias"} onClick={() => setTab("bias")} className="flex-1">
-          Bias
-        </Chip>
-        <Chip active={tab === "inspect"} onClick={() => setTab("inspect")} className="flex-1">
-          Inspect
-        </Chip>
-        <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">
-          Log
-        </Chip>
-        <Chip active={tab === "edge"} onClick={() => setTab("edge")} className="flex-1">
-          Edge
-        </Chip>
-        <Chip active={tab === "cal"} onClick={() => setTab("cal")} className="flex-1">
-          Calendar
-        </Chip>
-        <Chip active={tab === "rules"} onClick={() => setTab("rules")} className="flex-1">
-          Rules
-        </Chip>
-        <Chip active={tab === "plan"} onClick={() => setTab("plan")} className="flex-1">
-          Plan
-        </Chip>
-        <Chip active={tab === "backtest"} onClick={() => setTab("backtest")} className="flex-1">
-          Backtests
-        </Chip>
-        <Chip active={tab === "lessons"} onClick={() => setTab("lessons")} className="flex-1">
-          Lessons
-        </Chip>
-        <Chip active={tab === "news"} onClick={() => setTab("news")} className="flex-1">
-          News
-        </Chip>
-        <Chip active={tab === "calc"} onClick={() => setTab("calc")} className="flex-1">
-          Calc
-        </Chip>
+    <AppShell eyebrow="Trading" title={TABS.find((t) => t.value === tab)!.title}>
+      <div className="grid grid-cols-5 gap-1 rounded-full bg-secondary p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            aria-pressed={tab === t.value}
+            onClick={() => setTab(t.value)}
+            className={`h-10 rounded-full text-xs font-bold transition-all ${
+              tab === t.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
-      {tab === "bias" && <BiasTab />}
-      {tab === "inspect" && <InspectTab />}
       {tab === "log" && <LogTab />}
-      {tab === "edge" && <EdgeTab />}
+      {tab === "journal" && <TradeJournal lessons={<LessonsTab />} />}
+      {tab === "news" && <NewsWisdom calendar={<NewsTab />} />}
       {tab === "cal" && <TradeCalendar />}
-      {tab === "rules" && <RulesTab />}
-      {tab === "plan" && <PlanTab />}
-      {tab === "backtest" && <BacktestTab />}
-      {tab === "lessons" && <LessonsTab />}
-      {tab === "news" && <MarketHub events={<NewsTab />} />}
-      {tab === "calc" && <CalcTab />}
+      {tab === "tools" && (
+        <>
+          <RulesTab />
+          <CalcTab />
+        </>
+      )}
     </AppShell>
   );
 }
