@@ -8,7 +8,7 @@ import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, TextArea, T
 import { LessonToggle } from "@/components/app/LessonToggle";
 import { PILLARS, type Pillar } from "@/lib/pillars";
 import { prettyDate, todayISO } from "@/lib/dates";
-import { ENTRY_TYPES, addEntry, deleteEntry, journalQuery, updateEntry, type EntryType } from "@/lib/journal";
+import { ENTRY_TYPES, EXTRA_ENTRY_LABELS, addEntry, deleteEntry, journalQuery, updateEntry, type EntryType } from "@/lib/journal";
 
 export const Route = createFileRoute("/_authenticated/journal")({
   head: () => ({
@@ -97,7 +97,7 @@ function Journal() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${PILLARS[p].soft} ${PILLARS[p].text}`}>{PILLARS[p].label}</span>
                   <span className="text-xs font-bold text-muted-foreground">
-                    {ENTRY_TYPES.find((t) => t.value === e.entry_type)?.label ?? e.entry_type} · {prettyDate(e.date)}
+                    {ENTRY_TYPES.find((t) => t.value === e.entry_type)?.label ?? EXTRA_ENTRY_LABELS[e.entry_type] ?? e.entry_type} · {prettyDate(e.date)}
                   </span>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">

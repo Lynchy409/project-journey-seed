@@ -12,3 +12,4 @@
 - ¡Escapa! levels declare either corridor or chase gameplay in level data, so course progression can vary pace without splitting the game.
 - Training logs retain one workout with multiple sections in details JSON; completed sections drive task/XP linkage, so mixed sessions are not duplicated.
 - Training saves and edits use an authenticated atomic database function; edits retain the workout ID and failures preserve prior sets.
+- Trade accounts live in `trades.source` ("forexcom" | "spreadex" | "demo" | "challenge:<id>"; legacy "live"/"backtest") and cash P&L in `trades.further_levels.cash`; challenges, trade-journal notes and wisdom read marks are private `journal_entries` rows with dedicated entry types (`src/lib/trade-accounts.ts`) — why: no schema migration tool was available, and these rows keep per-user row security and sync across devices.

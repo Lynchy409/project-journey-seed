@@ -1,5 +1,21 @@
 import { TradeCalendar } from "@/components/app/TradeCalendar";
-import { MarketHub, LearningLink } from "@/components/app/MarketHub";
+import { LearningLink } from "@/components/app/MarketHub";
+import { TradeJournal } from "@/components/app/trade/TradeJournal";
+import { NewsWisdom } from "@/components/app/trade/NewsWisdom";
+import { EquityCurve } from "@/components/app/trade/EquityCurve";
+import { ChallengeCard, ChallengeSheet } from "@/components/app/trade/ChallengeCard";
+import {
+  ACCOUNTS,
+  accountLabel,
+  accountOf,
+  cashOf,
+  cashStats,
+  challengeStatus,
+  challengesQuery,
+  equityCurve,
+  money,
+  type Challenge,
+} from "@/lib/trade-accounts";
 import { classifyMarketTopic, MARKET_CONTEXT } from "@/lib/market-context";
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
@@ -82,13 +98,13 @@ export const Route = createFileRoute("/_authenticated/trade")({
       {
         name: "description",
         content:
-          "Your trading rules, bias tracker and trade log with entries, stops, targets and emotions.",
+          "Trade log with cash equity curve by account, prop challenge drawdown tracking, trade journal and market news.",
       },
       { property: "og:title", content: "Trade — My Journey" },
       {
         property: "og:description",
         content:
-          "Your trading rules, bias tracker and trade log with entries, stops, targets and emotions.",
+          "Trade log with cash equity curve by account, prop challenge drawdown tracking, trade journal and market news.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -97,87 +113,49 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab =
-  | "bias"
-  | "inspect"
-  | "log"
-  | "edge"
-  | "cal"
-  | "rules"
-  | "plan"
-  | "backtest"
-  | "lessons"
-  | "news"
-  | "calc";
+type Tab = "log" | "journal" | "news" | "cal" | "tools";
 
-const TAB_TITLES: Record<Tab, string> = {
-  bias: "Bias tracker",
-  inspect: "Market inspection",
-  log: "Trade log",
-  edge: "Edge finder",
-  cal: "Trading calendar",
-  rules: "My rules",
-  plan: "Trading plan",
-  backtest: "Backtests",
-  lessons: "My lessons",
-  news: "News",
-  calc: "Lot size calculator",
-};
+const TABS: { value: Tab; label: string; title: string }[] = [
+  { value: "log", label: "Log", title: "Trade log" },
+  { value: "journal", label: "Journal", title: "Trade journal" },
+  { value: "news", label: "News", title: "News & wisdom" },
+  { value: "cal", label: "Calendar", title: "Trading calendar" },
+  { value: "tools", label: "Tools", title: "Rules & calculator" },
+];
 
 function Trade() {
   const { tab: requestedTab } = Route.useSearch();
-  const [tab, setTab] = useState<Tab>(requestedTab ?? "bias");
+  const [tab, setTab] = useState<Tab>(requestedTab ?? "log");
   useEffect(() => {
     if (requestedTab) setTab(requestedTab);
   }, [requestedTab]);
   return (
-    <AppShell eyebrow="Trading" title={TAB_TITLES[tab]}>
-      <div className="flex flex-wrap gap-2">
-        <Chip active={tab === "bias"} onClick={() => setTab("bias")} className="flex-1">
-          Bias
-        </Chip>
-        <Chip active={tab === "inspect"} onClick={() => setTab("inspect")} className="flex-1">
-          Inspect
-        </Chip>
-        <Chip active={tab === "log"} onClick={() => setTab("log")} className="flex-1">
-          Log
-        </Chip>
-        <Chip active={tab === "edge"} onClick={() => setTab("edge")} className="flex-1">
-          Edge
-        </Chip>
-        <Chip active={tab === "cal"} onClick={() => setTab("cal")} className="flex-1">
-          Calendar
-        </Chip>
-        <Chip active={tab === "rules"} onClick={() => setTab("rules")} className="flex-1">
-          Rules
-        </Chip>
-        <Chip active={tab === "plan"} onClick={() => setTab("plan")} className="flex-1">
-          Plan
-        </Chip>
-        <Chip active={tab === "backtest"} onClick={() => setTab("backtest")} className="flex-1">
-          Backtests
-        </Chip>
-        <Chip active={tab === "lessons"} onClick={() => setTab("lessons")} className="flex-1">
-          Lessons
-        </Chip>
-        <Chip active={tab === "news"} onClick={() => setTab("news")} className="flex-1">
-          News
-        </Chip>
-        <Chip active={tab === "calc"} onClick={() => setTab("calc")} className="flex-1">
-          Calc
-        </Chip>
+    <AppShell eyebrow="Trading" title={TABS.find((t) => t.value === tab)!.title}>
+      <div className="grid grid-cols-5 gap-1 rounded-full bg-secondary p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            aria-pressed={tab === t.value}
+            onClick={() => setTab(t.value)}
+            className={`h-10 rounded-full text-xs font-bold transition-all ${
+              tab === t.value ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
-      {tab === "bias" && <BiasTab />}
-      {tab === "inspect" && <InspectTab />}
       {tab === "log" && <LogTab />}
-      {tab === "edge" && <EdgeTab />}
+      {tab === "journal" && <TradeJournal lessons={<LessonsTab />} />}
+      {tab === "news" && <NewsWisdom calendar={<NewsTab />} />}
       {tab === "cal" && <TradeCalendar />}
-      {tab === "rules" && <RulesTab />}
-      {tab === "plan" && <PlanTab />}
-      {tab === "backtest" && <BacktestTab />}
-      {tab === "lessons" && <LessonsTab />}
-      {tab === "news" && <MarketHub events={<NewsTab />} />}
-      {tab === "calc" && <CalcTab />}
+      {tab === "tools" && (
+        <>
+          <RulesTab />
+          <CalcTab />
+        </>
+      )}
     </AppShell>
   );
 }
@@ -293,56 +271,162 @@ function BiasTab() {
 
 /* ----------------------------------- log ---------------------------------- */
 
+type AccountFilter = "all" | "forexcom" | "spreadex" | "challenge" | "demo";
+
 function LogTab() {
   const qc = useQueryClient();
-  const { data: trades } = useQuery(tradesQuery);
+  const { data: allTrades } = useQuery(tradesQuery);
+  const { data: challenges } = useQuery(challengesQuery);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TradeRow | null>(null);
   const [recapOpen, setRecapOpen] = useState(false);
-  const stats = tradeStats((trades ?? []).filter((t) => (t.source ?? "live") === "live"));
+  const [account, setAccount] = useState<AccountFilter>("all");
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [chOpen, setChOpen] = useState(false);
+  const [chEditing, setChEditing] = useState<Challenge | null>(null);
+
+  const activeChallenge =
+    challenges?.find((c) => c.id === challengeId) ?? challenges?.[0] ?? null;
+  const trades = (allTrades ?? []).filter((t) => {
+    const a = accountOf(t.source);
+    if (a.kind === "backtest") return false;
+    if (account === "all") return a.kind !== "demo";
+    if (account === "challenge") return a.challengeId === activeChallenge?.id;
+    return a.kind === account;
+  });
+  const stats = cashStats(trades);
+  const curve = equityCurve(trades);
+  const currency = account === "challenge" ? (activeChallenge?.currency ?? "GBP") : "GBP";
+  const defaultSource =
+    account === "all"
+      ? "forexcom"
+      : account === "challenge"
+        ? `challenge:${activeChallenge?.id ?? ""}`
+        : account;
 
   const remove = useMutation({
     mutationFn: deleteTrade,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["trades"] }),
   });
 
+  const filters: { value: AccountFilter; label: string }[] = [
+    { value: "all", label: "All live" },
+    ...ACCOUNTS,
+  ];
+
   return (
     <>
-      <Card>
-        <div className="grid grid-cols-3 gap-2">
-          <Stat label="Trades" value={stats.count} />
-          <Stat label="Win rate" value={`${stats.winRate}%`} tone="text-trading" />
-          <Stat
-            label="Total R"
-            value={stats.totalR}
-            tone={stats.totalR >= 0 ? "text-trading" : "text-destructive"}
-          />
-        </div>
-        <div className="mt-3 space-y-2">
-          <PrimaryButton
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        {filters.map((a) => (
+          <Chip
+            key={a.value}
+            active={account === a.value}
+            onClick={() => setAccount(a.value)}
+            className="whitespace-nowrap"
           >
-            <span className="flex items-center justify-center gap-2">
-              <Plus className="h-5 w-5" /> Log a trade
-            </span>
-          </PrimaryButton>
+            {a.label}
+          </Chip>
+        ))}
+      </div>
+
+      {account === "challenge" && (
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+          {challenges?.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => setChallengeId(c.id)}
+              className={`h-10 whitespace-nowrap rounded-full border-2 px-4 text-sm font-bold ${
+                activeChallenge?.id === c.id
+                  ? "border-trading bg-trading-soft text-trading"
+                  : "border-transparent bg-secondary text-muted-foreground"
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
           <button
             type="button"
-            onClick={() => setRecapOpen(true)}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl border-2 border-trading bg-trading-soft text-sm font-bold text-trading"
+            onClick={() => {
+              setChEditing(null);
+              setChOpen(true);
+            }}
+            className="flex h-10 items-center gap-1 whitespace-nowrap rounded-full border-2 border-dashed px-4 text-sm font-bold text-muted-foreground"
           >
-            <Sunrise className="h-5 w-5" /> London session recap
+            <Plus className="h-4 w-4" /> New challenge
           </button>
         </div>
-      </Card>
-      <RecapSheet open={recapOpen} onOpenChange={setRecapOpen} />
+      )}
 
-      {!trades?.length ? (
+      {account === "challenge" && !activeChallenge ? (
         <Card>
-          <Empty>No trades logged yet.</Empty>
+          <Empty>Add your first challenge: set the target and drawdown rules once.</Empty>
+        </Card>
+      ) : account === "challenge" && activeChallenge ? (
+        <ChallengeCard
+          challenge={activeChallenge}
+          status={challengeStatus(activeChallenge, trades, todayISO())}
+          onEdit={() => {
+            setChEditing(activeChallenge);
+            setChOpen(true);
+          }}
+        />
+      ) : null}
+
+      {!(account === "challenge" && !activeChallenge) && (
+        <Card>
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Net P&L
+          </p>
+          <p
+            className={`mt-1 text-4xl font-extrabold leading-none ${
+              stats.net >= 0 ? "text-trading" : "text-destructive"
+            }`}
+          >
+            {money(stats.net, currency)}
+          </p>
+          <div className="mt-3">
+            <EquityCurve points={curve} currency={currency} />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Stat label="Trades" value={stats.trades} />
+            <Stat label="Win rate" value={`${stats.winRate}%`} tone="text-trading" />
+            <Stat
+              label="Total R"
+              value={stats.totalR}
+              tone={stats.totalR >= 0 ? "text-trading" : "text-destructive"}
+            />
+          </div>
+          <div className="mt-3 space-y-2">
+            <PrimaryButton
+              onClick={() => {
+                setEditing(null);
+                setOpen(true);
+              }}
+            >
+              <span className="flex items-center justify-center gap-2">
+                <Plus className="h-5 w-5" /> Log a trade
+              </span>
+            </PrimaryButton>
+            <GhostButton onClick={() => setRecapOpen(true)}>
+              <span className="flex items-center justify-center gap-2">
+                <Sunrise className="h-4 w-4" /> London session recap
+              </span>
+            </GhostButton>
+          </div>
+        </Card>
+      )}
+      <RecapSheet open={recapOpen} onOpenChange={setRecapOpen} />
+      <ChallengeSheet
+        open={chOpen}
+        onOpenChange={setChOpen}
+        challenge={chEditing}
+        onSaved={() => setAccount("challenge")}
+      />
+
+      {!trades.length ? (
+        <Card>
+          <Empty>No trades in this account yet.</Empty>
         </Card>
       ) : (
         trades.map((t) => (
@@ -357,6 +441,13 @@ function LogTab() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
+                {cashOf(t) != null && (
+                  <span
+                    className={`text-base font-extrabold ${cashOf(t)! >= 0 ? "text-trading" : "text-destructive"}`}
+                  >
+                    {money(cashOf(t)!, "GBP")}
+                  </span>
+                )}
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-bold ${
                     t.outcome === "win"
@@ -394,11 +485,9 @@ function LogTab() {
               {STRATEGIES.find((s) => s.value === t.strategy)?.label ?? t.strategy}
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              {t.source && t.source !== "live" && (
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold uppercase text-muted-foreground">
-                  {t.source}
-                </span>
-              )}
+              <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+                {accountLabel(t.source, challenges)}
+              </span>
               {t.setup && (
                 <span className="rounded-full bg-trading-soft px-2 py-0.5 text-[11px] font-bold text-trading">
                   {SETUPS.find((s) => s.value === t.setup)?.label ?? t.setup}
@@ -471,7 +560,7 @@ function LogTab() {
         ))
       )}
 
-      <TradeSheet open={open} onOpenChange={setOpen} trade={editing} />
+      <TradeSheet open={open} onOpenChange={setOpen} trade={editing} defaultSource={defaultSource} />
     </>
   );
 }
@@ -480,12 +569,15 @@ function TradeSheet({
   open,
   onOpenChange,
   trade,
+  defaultSource = "forexcom",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   trade: TradeRow | null;
+  defaultSource?: string;
 }) {
   const qc = useQueryClient();
+  const { data: challenges } = useQuery(challengesQuery);
   const [f, setF] = useState({
     date: todayISO(),
     time_of_trade: "",
@@ -497,7 +589,7 @@ function TradeSheet({
     confirmation: "",
     confirmation_tf: "",
     direction: "long",
-    source: "live",
+    source: "forexcom",
     entry: "",
     stop: "",
     target: "",
@@ -512,6 +604,8 @@ function TradeSheet({
     external_lesson: "",
     screenshot_url: "",
     lesson: "",
+    cash: "",
+    cash_sign: "+",
   });
   const [trendRows, setTrendRows] = useState<TrendCtx[]>([{ tf: "", direction: "bullish" }]);
   const [confRows, setConfRows] = useState<Confluence[]>([{ type: "", tf: "", role: "context" }]);
@@ -550,6 +644,8 @@ function TradeSheet({
         external_lesson: trade.external_lesson ?? "",
         screenshot_url: trade.screenshot_url ?? "",
         lesson: "",
+        cash: cashOf(trade) != null ? String(Math.abs(cashOf(trade)!)) : "",
+        cash_sign: (cashOf(trade) ?? 0) < 0 ? "-" : "+",
       });
       setTrendRows(
         Array.isArray(trade.trend_context) && trade.trend_context.length
@@ -581,7 +677,7 @@ function TradeSheet({
         confirmation: "",
         confirmation_tf: "",
         direction: "long",
-        source: "live",
+        source: defaultSource,
         entry: "",
         stop: "",
         target: "",
@@ -596,6 +692,8 @@ function TradeSheet({
         external_lesson: "",
         screenshot_url: "",
         lesson: "",
+        cash: "",
+        cash_sign: "+",
       });
       setTrendRows([{ tf: "", direction: "bullish" }]);
       setConfRows([{ type: "", tf: "", role: "context" }]);
@@ -644,7 +742,10 @@ function TradeSheet({
         external_lesson: f.external_lesson || null,
         trend_context: trendRows.filter((r) => r.tf),
         htf_confluences: confRows.filter((r) => r.type && r.tf),
-        further_levels: further,
+        further_levels: {
+          ...further,
+          cash: f.cash ? (f.cash_sign === "-" ? -1 : 1) * Number(f.cash) : null,
+        },
         screenshot_url: screenshotUrl,
         news_events:
           (await snapshotNews(f.date)) ??
@@ -699,6 +800,7 @@ function TradeSheet({
       setF((s) => ({
         ...s,
         pair: "",
+        cash: "",
         entry: "",
         stop: "",
         target: "",
@@ -722,21 +824,47 @@ function TradeSheet({
 
   return (
     <FormSheet open={open} onOpenChange={onOpenChange} title={trade ? "Edit trade" : "Log a trade"}>
-      <FormSection>Basics</FormSection>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Date">
-          <TextInput type="date" value={f.date} onChange={(e) => set("date", e.target.value)} />
-        </Field>
-        <Field label="Source">
+      <FormSection>Account</FormSection>
+      <div className="grid grid-cols-4 gap-1.5">
+        {ACCOUNTS.map((a) => {
+          const kind = accountOf(f.source).kind;
+          return (
+            <Chip
+              key={a.value}
+              active={kind === a.value}
+              onClick={() =>
+                set("source", a.value === "challenge" ? `challenge:${challenges?.[0]?.id ?? ""}` : a.value)
+              }
+              className="!px-1 text-xs"
+            >
+              {a.label}
+            </Chip>
+          );
+        })}
+      </div>
+      {accountOf(f.source).kind === "challenge" &&
+        (challenges?.length ? (
           <SelectInput value={f.source} onChange={(e) => set("source", e.target.value)}>
-            {SOURCES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
+            {challenges.map((c) => (
+              <option key={c.id} value={`challenge:${c.id}`}>
+                {c.name}
               </option>
             ))}
           </SelectInput>
-        </Field>
-      </div>
+        ) : (
+          <p className="text-xs font-semibold text-muted-foreground">
+            Add a challenge from the Challenges view first.
+          </p>
+        ))}
+      {(f.source === "live" || f.source === "backtest") && (
+        <p className="text-xs font-semibold text-muted-foreground">
+          Older trade saved as “{f.source}”. Pick an account to move it.
+        </p>
+      )}
+      <FormSection>Basics</FormSection>
+      <Field label="Date">
+        <TextInput type="date" value={f.date} onChange={(e) => set("date", e.target.value)} />
+      </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Time of trade">
           <TextInput
@@ -1037,12 +1165,45 @@ function TradeSheet({
             <Chip
               key={o}
               active={f.outcome === o}
-              onClick={() => set("outcome", o)}
+              onClick={() => {
+                set("outcome", o);
+                if (o === "win") set("cash_sign", "+");
+                if (o === "loss") set("cash_sign", "-");
+              }}
               className="flex-1"
             >
               {o}
             </Chip>
           ))}
+        </div>
+      </Field>
+      <Field label="Cash P&L">
+        <div className="flex gap-2">
+          <div className="flex shrink-0 rounded-2xl bg-secondary p-1">
+            <button
+              type="button"
+              aria-pressed={f.cash_sign === "+"}
+              onClick={() => set("cash_sign", "+")}
+              className={`h-10 w-12 rounded-xl text-lg font-extrabold ${f.cash_sign === "+" ? "bg-trading text-primary-foreground" : "text-muted-foreground"}`}
+            >
+              +
+            </button>
+            <button
+              type="button"
+              aria-pressed={f.cash_sign === "-"}
+              onClick={() => set("cash_sign", "-")}
+              className={`h-10 w-12 rounded-xl text-lg font-extrabold ${f.cash_sign === "-" ? "bg-destructive text-primary-foreground" : "text-muted-foreground"}`}
+            >
+              −
+            </button>
+          </div>
+          <TextInput
+            inputMode="decimal"
+            value={f.cash}
+            onChange={(e) => set("cash", e.target.value.replace(/[^0-9.]/g, ""))}
+            placeholder="e.g. 250"
+            className={f.cash ? (f.cash_sign === "+" ? "text-trading" : "text-destructive") : ""}
+          />
         </div>
       </Field>
       <Field label="Result in R">
@@ -2334,6 +2495,7 @@ function newsDayLabel(key: string, isToday: boolean): string {
 }
 
 function NewsTab() {
+  const [showPast, setShowPast] = useState(false);
   const { data, isLoading, isError, refetch, isRefetching, dataUpdatedAt } = useQuery({
     queryKey: ["ff-news"],
     queryFn: () => getNewsEvents(),
@@ -2379,11 +2541,6 @@ function NewsTab() {
           {isRefetching ? "…" : "Refresh"}
         </button>
       </Card>
-      <p className="px-1 text-xs text-muted-foreground">
-        Calendar loaded{" "}
-        {new Date(dataUpdatedAt).toLocaleString("en-GB", { timeZone: "Europe/London" })} UK time.
-        Provider cache: up to 30 minutes. Ratings and forecasts are third-party estimates.
-      </p>
       {!data.some((e) => Date.parse(e.instant) > now) && (
         <Card>
           <p className="text-sm">
@@ -2401,7 +2558,17 @@ function NewsTab() {
         </Card>
       )}
       {days.size === 0 && <Empty>No high or medium impact events this week.</Empty>}
+      {[...days.keys()].some((k) => k < todayKey) && (
+        <button
+          type="button"
+          onClick={() => setShowPast((v) => !v)}
+          className="min-h-11 px-1 text-sm font-bold text-trading"
+        >
+          {showPast ? "Hide earlier this week" : "Show earlier this week"}
+        </button>
+      )}
       {[...days.entries()]
+        .filter(([key]) => showPast || key >= todayKey)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([key, events]) => {
           const isToday = key === todayKey;
