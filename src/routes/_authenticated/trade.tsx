@@ -98,13 +98,13 @@ export const Route = createFileRoute("/_authenticated/trade")({
       {
         name: "description",
         content:
-          "Your trading rules, bias tracker and trade log with entries, stops, targets and emotions.",
+          "Trade log with cash equity curve by account, prop challenge drawdown tracking, trade journal and market news.",
       },
       { property: "og:title", content: "Trade — My Journey" },
       {
         property: "og:description",
         content:
-          "Your trading rules, bias tracker and trade log with entries, stops, targets and emotions.",
+          "Trade log with cash equity curve by account, prop challenge drawdown tracking, trade journal and market news.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
