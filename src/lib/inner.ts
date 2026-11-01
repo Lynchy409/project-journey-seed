@@ -4,7 +4,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { addDays, iso, startOfWeek } from "./dates";
 import { uid } from "./day";
 
-export type InnerKind = "curiosity" | "quest";
+export type InnerKind = "curiosity" | "quest" | "objective" | "streak" | "streak_day";
 
 export const innerItemsQuery = queryOptions({
   queryKey: ["inner_items"],
@@ -130,4 +130,14 @@ export function levelFor(doneCount: number) {
   const xp = doneCount * 10;
   const level = Math.floor(xp / 100) + 1;
   return { xp, level, into: xp % 100, rank: RANKS[Math.min(level - 1, RANKS.length - 1)] ?? "Master" };
+}
+
+/** XP from Inner: completed objectives (score = XP, output = completion date) and clean-streak days (+20). */
+export function innerXp(items: Pick<InnerItem, "kind" | "done" | "score" | "output" | "date">[]) {
+  const out: { date: string; xp: number }[] = [];
+  for (const i of items) {
+    if (i.kind === "objective" && i.done && i.score) out.push({ date: i.output ?? "", xp: i.score });
+    if (i.kind === "streak_day" && i.date) out.push({ date: i.date, xp: 20 });
+  }
+  return out;
 }

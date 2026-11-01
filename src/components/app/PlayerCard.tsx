@@ -1,12 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { allDriverLogsQuery, levelFromXp, rankFor } from "@/lib/xp";
 import { driverXp } from "@/lib/drivers";
+import { innerItemsQuery, innerXp } from "@/lib/inner";
 
 export function useXp(date: string) {
   const { data } = useQuery(allDriverLogsQuery);
+  const { data: inner } = useQuery(innerItemsQuery);
   const rows = data ?? [];
-  const total = rows.reduce((s, r) => s + driverXp(r.driver_key, r.evidence), 0);
-  const today = rows.filter((r) => r.date === date).reduce((s, r) => s + driverXp(r.driver_key, r.evidence), 0);
+  const extra = innerXp(inner ?? []);
+  const total = rows.reduce((s, r) => s + driverXp(r.driver_key, r.evidence), 0) + extra.reduce((s, x) => s + x.xp, 0);
+  const today = rows.filter((r) => r.date === date).reduce((s, r) => s + driverXp(r.driver_key, r.evidence), 0)
+    + extra.filter((x) => x.date === date).reduce((s, x) => s + x.xp, 0);
   return { total, today, ...levelFromXp(total) };
 }
 
