@@ -20,6 +20,8 @@ import {
 import { MatchGame } from "@/components/app/MatchGame";
 import { StreakQuiz } from "@/components/app/StreakQuiz";
 import { SpanishHub } from "@/components/app/SpanishHub";
+import { KnowledgeVault } from "@/components/app/learn/KnowledgeVault";
+import { RecallHub } from "@/components/app/learn/RecallHub";
 import { prettyDate, todayISO } from "@/lib/dates";
 import {
   addCard,
@@ -65,12 +67,12 @@ export const Route = createFileRoute("/_authenticated/learn")({
       { title: "Learn — My Journey" },
       {
         name: "description",
-        content: "Focus timer, study log and flashcards that resurface what you keep forgetting.",
+        content: "Spanish, a knowledge library and a recall game that locks what you learn into long-term memory.",
       },
       { property: "og:title", content: "Learn — My Journey" },
       {
         property: "og:description",
-        content: "Focus timer, study log and flashcards that resurface what you keep forgetting.",
+        content: "Spanish, a knowledge library and a recall game that locks what you learn into long-term memory.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -79,57 +81,66 @@ export const Route = createFileRoute("/_authenticated/learn")({
   component: Learn,
 });
 
-type Tab = "market" | "spanish" | "focus" | "games" | "cards" | "log";
+type Tab = "spanish" | "knowledge" | "recall" | "focus";
 
 const TITLES: Record<Tab, string> = {
-  market: "Market knowledge",
   spanish: "Spanish",
-  focus: "Focus",
-  games: "Games",
-  cards: "Flashcards",
-  log: "Study log",
+  knowledge: "Knowledge",
+  recall: "Recall & games",
+  focus: "Focus & log",
 };
 
 function Learn() {
   const { lesson: requestedLesson, area, task } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const [tab, setTab] = useState<Tab>(area === "spanish" ? "spanish" : "market");
+  const [tab, setTab] = useState<Tab>(area === "spanish" ? "spanish" : "knowledge");
+  const [know, setKnow] = useState<"vault" | "market">(requestedLesson ? "market" : "vault");
+  const [recall, setRecall] = useState<"recall" | "games">("recall");
   const selectTab = (next: Tab) => {
     setTab(next);
     void navigate({ search: next === "spanish" ? { area: "spanish" } : {} });
   };
   useEffect(() => {
-    if (requestedLesson) setTab("market");
+    if (requestedLesson) {
+      setTab("knowledge");
+      setKnow("market");
+    }
   }, [requestedLesson]);
   useEffect(() => { if (area === "spanish") setTab("spanish"); }, [area, task]);
   return (
     <AppShell eyebrow="Learning" title={TITLES[tab]}>
-      <div className="grid grid-cols-3 gap-1 [&>button]:min-h-11">
-        <Chip active={tab === "market"} onClick={() => selectTab("market")} className="min-w-0 !px-1">
-          Market
-        </Chip>
-        <Chip active={tab === "spanish"} onClick={() => selectTab("spanish")} className="min-w-0 !px-1">
-          Spanish
-        </Chip>
-        <Chip active={tab === "focus"} onClick={() => selectTab("focus")} className="min-w-0 !px-1">
-          Focus
-        </Chip>
-        <Chip active={tab === "games"} onClick={() => selectTab("games")} className="min-w-0 !px-1">
-          Games
-        </Chip>
-        <Chip active={tab === "cards"} onClick={() => selectTab("cards")} className="min-w-0 !px-1">
-          Cards
-        </Chip>
-        <Chip active={tab === "log"} onClick={() => selectTab("log")} className="min-w-0 !px-1">
-          Log
-        </Chip>
+      <div className="grid grid-cols-4 gap-1 [&>button]:min-h-11">
+        {(["spanish", "knowledge", "recall", "focus"] as Tab[]).map((t) => (
+          <Chip key={t} active={tab === t} onClick={() => selectTab(t)} className="min-w-0 !px-1">
+            {{ spanish: "Spanish", knowledge: "Knowledge", recall: "Recall", focus: "Focus" }[t]}
+          </Chip>
+        ))}
       </div>
-      {tab === "market" && <Market />}
       {tab === "spanish" && <SpanishHub initialTask={task} />}
-      {tab === "focus" && <Focus />}
-      {tab === "games" && <Games />}
-      {tab === "cards" && <Cards />}
-      {tab === "log" && <Log />}
+      {tab === "knowledge" && (
+        <>
+          <div className="flex gap-2">
+            <Chip active={know === "vault"} onClick={() => setKnow("vault")} className="flex-1">Library</Chip>
+            <Chip active={know === "market"} onClick={() => setKnow("market")} className="flex-1">Market course</Chip>
+          </div>
+          {know === "vault" ? <KnowledgeVault /> : <Market />}
+        </>
+      )}
+      {tab === "recall" && (
+        <>
+          <div className="flex gap-2">
+            <Chip active={recall === "recall"} onClick={() => setRecall("recall")} className="flex-1">Recall</Chip>
+            <Chip active={recall === "games"} onClick={() => setRecall("games")} className="flex-1">Match & streak</Chip>
+          </div>
+          {recall === "recall" ? <RecallHub /> : <Games />}
+        </>
+      )}
+      {tab === "focus" && (
+        <>
+          <Focus />
+          <Log />
+        </>
+      )}
     </AppShell>
   );
 }
@@ -850,150 +861,6 @@ function Focus() {
           <Stat label="Sessions" value={sessions?.length ?? 0} />
         </div>
       </Card>
-    </>
-  );
-}
-
-function Cards() {
-  const qc = useQueryClient();
-  const { data: cards } = useQuery(flashcardsQuery);
-  const [open, setOpen] = useState(false);
-  const [front, setFront] = useState("");
-  const [back, setBack] = useState("");
-  const [deck, setDeck] = useState("Spanish");
-  const [flipped, setFlipped] = useState(false);
-
-  const due = (cards ?? []).filter((c) => c.due_on <= todayISO());
-  const card = due[0];
-
-  const add = useMutation({
-    mutationFn: () => addCard({ deck, front: front.trim(), back: back.trim() }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["flashcards"] });
-      setFront("");
-      setBack("");
-      toast.success("Card added");
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
-  });
-
-  const review = useMutation({
-    mutationFn: ({ id, box, correct }: { id: string; box: number; correct: boolean }) =>
-      reviewCard(id, box, correct),
-    onSuccess: () => {
-      setFlipped(false);
-      qc.invalidateQueries({ queryKey: ["flashcards"] });
-    },
-  });
-
-  const remove = useMutation({
-    mutationFn: deleteCard,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["flashcards"] }),
-  });
-
-  return (
-    <>
-      <Card>
-        <div className="grid grid-cols-2 gap-2">
-          <Stat label="Due now" value={due.length} tone="text-learning" />
-          <Stat label="Total cards" value={cards?.length ?? 0} />
-        </div>
-        <div className="mt-3">
-          <PrimaryButton onClick={() => setOpen(true)}>
-            <span className="flex items-center justify-center gap-2">
-              <Plus className="h-5 w-5" /> Add a card
-            </span>
-          </PrimaryButton>
-        </div>
-      </Card>
-
-      {card ? (
-        <Card>
-          <SectionTitle>
-            {card.deck} · box {card.box}
-          </SectionTitle>
-          <button
-            onClick={() => setFlipped((f) => !f)}
-            className="mt-4 block w-full rounded-3xl bg-secondary p-8 text-center"
-          >
-            <p className="text-2xl font-extrabold leading-snug">
-              {flipped ? card.back : card.front}
-            </p>
-            <p className="mt-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              {flipped ? "Answer" : "Tap to flip"}
-            </p>
-          </button>
-          {flipped && (
-            <div className="mt-3 flex gap-3">
-              <button
-                onClick={() => review.mutate({ id: card.id, box: card.box, correct: false })}
-                className="h-12 flex-1 rounded-2xl bg-destructive/10 text-sm font-extrabold text-destructive"
-              >
-                Got it wrong
-              </button>
-              <button
-                onClick={() => review.mutate({ id: card.id, box: card.box, correct: true })}
-                className="h-12 flex-1 rounded-2xl bg-trading-soft text-sm font-extrabold text-trading"
-              >
-                Got it right
-              </button>
-            </div>
-          )}
-        </Card>
-      ) : (
-        <Card>
-          <Empty>{cards?.length ? "Nothing due. Come back tomorrow." : "No cards yet."}</Empty>
-        </Card>
-      )}
-
-      {!!cards?.length && (
-        <Card>
-          <SectionTitle>All cards</SectionTitle>
-          <ul className="mt-3 space-y-1.5">
-            {cards.map((c) => (
-              <li key={c.id} className="flex items-center gap-3 rounded-xl bg-secondary px-3 py-2">
-                <span className="min-w-0 flex-1 truncate text-sm font-bold">{c.front}</span>
-                <span className="shrink-0 text-xs font-bold text-muted-foreground">
-                  due {prettyDate(c.due_on)}
-                </span>
-                <button
-                  aria-label="Delete card"
-                  onClick={() => remove.mutate(c.id)}
-                  className="text-muted-foreground"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      <FormSheet open={open} onOpenChange={setOpen} title="Add a flashcard">
-        <Field label="Deck">
-          <TextInput value={deck} onChange={(e) => setDeck(e.target.value)} />
-        </Field>
-        <Field label="Front">
-          <TextInput
-            value={front}
-            onChange={(e) => setFront(e.target.value)}
-            placeholder="e.g. la meta"
-          />
-        </Field>
-        <Field label="Back">
-          <TextInput
-            value={back}
-            onChange={(e) => setBack(e.target.value)}
-            placeholder="e.g. the goal"
-          />
-        </Field>
-        <PrimaryButton
-          onClick={() => add.mutate()}
-          disabled={!front.trim() || !back.trim() || add.isPending}
-        >
-          Add card
-        </PrimaryButton>
-      </FormSheet>
     </>
   );
 }
