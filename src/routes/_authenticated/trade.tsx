@@ -478,7 +478,7 @@ function TradeSheet({
     confirmation: "",
     confirmation_tf: "",
     direction: "long",
-    source: "live",
+    source: "forexcom",
     entry: "",
     stop: "",
     target: "",
@@ -1054,7 +1054,11 @@ function TradeSheet({
             <Chip
               key={o}
               active={f.outcome === o}
-              onClick={() => set("outcome", o)}
+              onClick={() => {
+                set("outcome", o);
+                if (o === "win") set("cash_sign", "+");
+                if (o === "loss") set("cash_sign", "-");
+              }}
               className="flex-1"
             >
               {o}
