@@ -55,6 +55,12 @@ export const DRIVERS: Driver[] = [
 
 export const TIER_LABELS = { 1: "High impact", 2: "Core growth", 3: "Foundation" } as const;
 
+/** Markets are closed Sat/Sun, so the trading session task is hidden then. date = YYYY-MM-DD */
+export function isWeekend(date: string): boolean {
+  const day = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return day === 0 || day === 6;
+}
+
 const XP_BY_KEY = new Map(DRIVERS.map((d) => [d.key, d.xp]));
 
 /** XP a single logged driver is worth. Rule breaches bank 0. */
