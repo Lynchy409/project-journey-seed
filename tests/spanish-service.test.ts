@@ -55,55 +55,33 @@ test("missing/whitespace key makes no provider request and never exposes configu
   assert(!JSON.stringify(setup).includes("server-only-test-key"));
 });
 
-test("real call shape requires a separately checked answer and uses server credentials only", async () => {
+test("one fast call: answer is decoded and validated, using server credentials only", async () => {
   const p = provider([
-    envelope(),
-    Response.json({
-      output_text: JSON.stringify({
-        ...answer,
-        response: "¿Qué fue lo mejor de ese fin de semana?",
-      }),
-    }),
+    Response.json({ output_text: JSON.stringify({ ...answer, response: "¿Qué fue lo mejor de ese fin de semana?" }) }),
   ]);
-  const result = await runSpanishService(request, {
-    key: "server-only-test-key",
-    model: "draft-model",
-    reviewModel: "review-model",
-    fetch: p.fetch,
-  });
+  const result = await runSpanishService(request, { key: "server-only-test-key", model: "draft-model", fetch: p.fetch });
   assert(result.ok);
   if (result.ok) assert.equal(result.result.response, "¿Qué fue lo mejor de ese fin de semana?");
-  assert.equal(p.calls.length, 2);
+  assert.equal(p.calls.length, 1);
   assert.equal(p.calls[0].url, "https://ai.gateway.lovable.dev/v1/responses");
   assert.equal(p.calls[0].body.model, "draft-model");
-  assert.equal(p.calls[1].body.model, "review-model");
   assert.equal(p.calls[0].auth, "Bearer server-only-test-key");
   assert(!JSON.stringify(result).includes("server-only-test-key"));
-  assert.deepEqual(JSON.parse(String(p.calls[1].body.input)).request, request);
 });
 
 for (const status of [400, 401, 402, 403, 404, 429, 503]) {
-  for (const stage of ["draft", "review"] as const) {
-    test(`${status} in ${stage} returns a safe actionable failure, not an unchecked answer`, async () => {
-      const failure = new Response("private-provider-body-and-secret", { status });
-      const p = provider(stage === "draft" ? [failure] : [envelope(), failure]);
-      const result = await runSpanishService(request, {
-        key: "server-only-test-key",
-        fetch: p.fetch,
-      });
-      assert(!result.ok);
-      if (!result.ok) {
-        assert.equal(result.error.stage, stage);
-        assert(result.error.code.endsWith(`_${status}`));
-        if (status === 402) assert.match(result.error.message, /runtime credits/);
-        if (status === 401) assert.match(result.error.message, /not a database reinstall/);
-      }
-      assert.equal(p.calls.length, stage === "draft" ? 1 : 2);
-      assert(!JSON.stringify(result).includes("private-provider-body-and-secret"));
-      assert(!("result" in result));
-      assert.deepEqual(JSON.parse(JSON.stringify(result)), result);
-    });
-  }
+  test(`${status} returns a safe actionable failure, not an unchecked answer`, async () => {
+    const p = provider([new Response("private-provider-body-and-secret", { status })]);
+    const result = await runSpanishService(request, { key: "server-only-test-key", fetch: p.fetch });
+    assert(!result.ok);
+    if (!result.ok) {
+      assert(result.error.code.endsWith(`_${status}`));
+      if (status === 402) assert.match(result.error.message, /runtime credits/);
+      if (status === 401) assert.match(result.error.message, /not a database reinstall/);
+    }
+    assert.equal(p.calls.length, 1);
+    assert(!JSON.stringify(result).includes("private-provider-body-and-secret"));
+  });
 }
 
 for (const bad of [
@@ -113,13 +91,9 @@ for (const bad of [
   { status: "incomplete", output_text: JSON.stringify(answer) },
 ]) {
   test(`unusable answer never escapes as success: ${JSON.stringify(bad).slice(0, 70)}`, async () => {
-    const p = provider([envelope(), Response.json(bad)]);
-    const result = await runSpanishService(request, {
-      key: "server-only-test-key",
-      fetch: p.fetch,
-    });
+    const p = provider([Response.json(bad)]);
+    const result = await runSpanishService(request, { key: "server-only-test-key", fetch: p.fetch });
     assert(!result.ok);
-    if (!result.ok) assert.equal(result.error.stage, "review");
   });
 }
 
