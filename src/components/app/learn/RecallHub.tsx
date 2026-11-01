@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Brain, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,14 +23,14 @@ function readStats(): Stats {
 export function RecallHub() {
   const qc = useQueryClient();
   const { data } = useQuery(flashcardsQuery);
-  const cards = (data ?? []) as RecallCard[] & { due_on: string }[];
   const all = data ?? [];
   const [deck, setDeck] = useState("all");
   const [round, setRound] = useState<RecallCard[] | null>(null);
   const [last, setLast] = useState<{ right: number; total: number } | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [adding, setAdding] = useState(false);
-  const s = stats ?? (typeof window !== "undefined" ? readStats() : { rounds: 0, right: 0, total: 0, best: 0 });
+  useEffect(() => setStats(readStats()), []);
+  const s = stats ?? { rounds: 0, right: 0, total: 0, best: 0 };
 
   const decks = [...new Set(all.map((c) => c.deck))];
   const inDeck = all.filter((c) => deck === "all" || c.deck === deck);
@@ -132,7 +132,6 @@ export function RecallHub() {
         )}
       </Card>
       <AddFact open={adding} onOpenChange={setAdding} decks={decks} />
-      {void cards}
     </>
   );
 }
