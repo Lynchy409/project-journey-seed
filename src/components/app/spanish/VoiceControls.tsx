@@ -21,7 +21,7 @@ function getRecognition(): (new () => Recognition) | undefined {
 }
 
 /** Browser speech-to-text (Spanish). Free, built into the browser; typing always remains available. */
-export function VoiceInput({ onText, disabled }: { onText: (text: string) => void; disabled?: boolean }) {
+export function VoiceInput({ onText, disabled, lang = "es-ES" }: { onText: (text: string) => void; disabled?: boolean; lang?: string }) {
   const [state, setState] = useState<"idle" | "listening" | "unsupported">("idle");
   const [note, setNote] = useState("");
   const rec = useRef<Recognition | null>(null);
@@ -39,7 +39,7 @@ export function VoiceInput({ onText, disabled }: { onText: (text: string) => voi
     const Ctor = getRecognition();
     if (!Ctor) return;
     const r = new Ctor();
-    r.lang = "es-ES";
+    r.lang = lang;
     r.interimResults = false;
     r.continuous = false;
     r.onresult = (e) => {
