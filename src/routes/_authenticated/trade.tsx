@@ -458,12 +458,15 @@ function TradeSheet({
   open,
   onOpenChange,
   trade,
+  defaultSource = "forexcom",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   trade: TradeRow | null;
+  defaultSource?: string;
 }) {
   const qc = useQueryClient();
+  const { data: challenges } = useQuery(challengesQuery);
   const [f, setF] = useState({
     date: todayISO(),
     time_of_trade: "",
@@ -490,6 +493,8 @@ function TradeSheet({
     external_lesson: "",
     screenshot_url: "",
     lesson: "",
+    cash: "",
+    cash_sign: "+",
   });
   const [trendRows, setTrendRows] = useState<TrendCtx[]>([{ tf: "", direction: "bullish" }]);
   const [confRows, setConfRows] = useState<Confluence[]>([{ type: "", tf: "", role: "context" }]);
@@ -528,6 +533,8 @@ function TradeSheet({
         external_lesson: trade.external_lesson ?? "",
         screenshot_url: trade.screenshot_url ?? "",
         lesson: "",
+        cash: cashOf(trade) != null ? String(Math.abs(cashOf(trade)!)) : "",
+        cash_sign: (cashOf(trade) ?? 0) < 0 ? "-" : "+",
       });
       setTrendRows(
         Array.isArray(trade.trend_context) && trade.trend_context.length
@@ -559,7 +566,7 @@ function TradeSheet({
         confirmation: "",
         confirmation_tf: "",
         direction: "long",
-        source: "live",
+        source: defaultSource,
         entry: "",
         stop: "",
         target: "",
@@ -574,6 +581,8 @@ function TradeSheet({
         external_lesson: "",
         screenshot_url: "",
         lesson: "",
+        cash: "",
+        cash_sign: "+",
       });
       setTrendRows([{ tf: "", direction: "bullish" }]);
       setConfRows([{ type: "", tf: "", role: "context" }]);
@@ -622,7 +631,10 @@ function TradeSheet({
         external_lesson: f.external_lesson || null,
         trend_context: trendRows.filter((r) => r.tf),
         htf_confluences: confRows.filter((r) => r.type && r.tf),
-        further_levels: further,
+        further_levels: {
+          ...further,
+          cash: f.cash ? (f.cash_sign === "-" ? -1 : 1) * Number(f.cash) : null,
+        },
         screenshot_url: screenshotUrl,
         news_events:
           (await snapshotNews(f.date)) ??
@@ -677,6 +689,7 @@ function TradeSheet({
       setF((s) => ({
         ...s,
         pair: "",
+        cash: "",
         entry: "",
         stop: "",
         target: "",
