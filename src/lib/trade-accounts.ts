@@ -169,7 +169,7 @@ export const challengesQuery = queryOptions({
   },
 });
 
-export async function saveChallenge(c: Omit<Challenge, "id"> & { id?: string }) {
+export async function saveChallenge(c: Omit<Challenge, "id"> & { id?: string | undefined }) {
   const { id, ...body } = c;
   const text = JSON.stringify(body);
   if (id) {
