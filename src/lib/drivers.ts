@@ -53,7 +53,7 @@ export const DRIVERS: Driver[] = [
   { key: "recovery", title: "Recovery", tag: "Train", emoji: "🛁", ...FIT, xp: 30, tier: 3, objective: "Stretch, foam roll, sauna or rest.", prompt: "What you did", placeholder: "Foam roll 10 min", identity: BEAST, tool: null },
 ];
 
-export const TIER_LABELS = { 1: "Boss bounties", 2: "Core growth", 3: "Foundation" } as const;
+export const TIER_LABELS = { 1: "High impact", 2: "Core growth", 3: "Foundation" } as const;
 
 const XP_BY_KEY = new Map(DRIVERS.map((d) => [d.key, d.xp]));
 
