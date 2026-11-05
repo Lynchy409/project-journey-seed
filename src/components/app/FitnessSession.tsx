@@ -449,12 +449,12 @@ export function SessionComposer({
               const groups: number[][] = [];
               state.sets.forEach((st, i) => {
                 const g = groups[groups.length - 1];
-                if (g && i > 0 && norm(state.sets[i - 1].exercise) === norm(st.exercise) && st.exercise.trim())
+                if (g && i > 0 && norm(state.sets[i - 1]!.exercise) === norm(st.exercise) && st.exercise.trim())
                   g.push(i);
                 else groups.push([i]);
               });
               return groups.map((idx, gi) => {
-                const first = state.sets[idx[0]];
+                const first = state.sets[idx[0]!]!;
                 const name = first.exercise;
                 const key = norm(name);
                 const prev = key ? previousExercise(history.data ?? [], name, state.date, editing?.id) : undefined;
@@ -469,7 +469,7 @@ export function SessionComposer({
                 const isPr = (st: FitnessSet) =>
                   !!best && st.load_type !== "assisted" && st.weight != null && (st.reps ?? 0) > 0 &&
                   (st.weight > (best.weight ?? 0) || (st.weight === best.weight && (st.reps ?? 0) > (best.reps ?? 0)));
-                const last = idx[idx.length - 1];
+                const last = idx[idx.length - 1]!;
                 return (
                   <div key={idx[0]} className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm" data-testid={`exercise-card-${gi}`}>
                     <div className="flex items-start gap-2">
@@ -508,7 +508,7 @@ export function SessionComposer({
                       <span>Set</span><span>Previous</span><span>Kg</span><span>Reps</span><span />
                     </div>
                     {idx.map((i, k) => {
-                      const st = state.sets[i];
+                      const st = state.sets[i]!;
                       const p = previous[k];
                       const pr = isPr(st);
                       return (
@@ -568,7 +568,7 @@ export function SessionComposer({
                       aria-label={`Add set to ${name || "exercise"}`}
                       onClick={() => {
                         setRawNumbers({});
-                        patch({ sets: [...state.sets.slice(0, last + 1), nextSet(state.sets[last]), ...state.sets.slice(last + 1)] });
+                        patch({ sets: [...state.sets.slice(0, last + 1), nextSet(state.sets[last]!), ...state.sets.slice(last + 1)] });
                       }}
                     >
                       <span className="flex items-center justify-center gap-1"><Plus size={18} /> Add set</span>
