@@ -42,6 +42,8 @@
   --color-trading-soft: var(--trading-soft);
   --color-fitness: var(--fitness);
   --color-fitness-soft: var(--fitness-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
   --color-learning: var(--learning);
   --color-learning-soft: var(--learning-soft);
   --color-life: var(--life);
@@ -89,6 +91,8 @@
   --trading-soft: oklch(0.95 0.05 155);
   --fitness: oklch(0.7 0.19 48);
   --fitness-soft: oklch(0.95 0.05 60);
+  --gold: oklch(0.72 0.15 85);
+  --gold-soft: oklch(0.96 0.06 90);
   --learning: oklch(0.62 0.19 255);
   --learning-soft: oklch(0.95 0.04 255);
   --life: oklch(0.6 0.22 295);
