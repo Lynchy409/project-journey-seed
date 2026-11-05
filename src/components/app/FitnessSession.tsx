@@ -444,103 +444,141 @@ export function SessionComposer({
                 <option key={n} value={n} />
               ))}
             </datalist>
-            {state.sets.map((s, i) => {
-              const prev = previousExercise(
-                history.data ?? [],
-                s.exercise,
-                state.date,
-                editing?.id,
-              );
-              const previous = prev
-                ? setsOf(prev).filter(
-                    (p) => p.exercise.trim().toLowerCase() === s.exercise.trim().toLowerCase(),
-                  )
-                : [];
-              const best = (history.data ?? [])
-                .flatMap((w) => setsOf(w))
-                .filter(
-                  (p) =>
-                    p.exercise.trim().toLowerCase() === s.exercise.trim().toLowerCase() &&
-                    p.load_type !== "assisted" &&
-                    p.weight != null &&
-                    (p.reps ?? 0) > 0,
-                )
-                .sort(
-                  (a, b) => (b.weight ?? 0) - (a.weight ?? 0) || (b.reps ?? 0) - (a.reps ?? 0),
-                )[0];
-              return (
-                <div key={i} className="space-y-3 border-b pb-4" data-testid={`training-set-${i}`}>
-                  <Field label={`Set ${i + 1} exercise`}>
-                    <TextInput
-                      list="logged-exercises"
-                      value={s.exercise}
-                      onChange={(e) => updateSet(i, { exercise: e.target.value })}
-                    />
-                  </Field>
-                  {s.exercise.trim() && (
-                    <div
-                      className="text-sm text-muted-foreground"
-                      data-testid={`previous-sets-${i}`}
-                    >
-                      <p>
-                        Previous{prev ? ` · ${prettyDate(prev.date)}` : ""}:{" "}
-                        {previous.length
-                          ? previous.map(setLabel).join(" / ")
-                          : "No logged sets yet"}
-                      </p>
-                      <p className="font-bold text-fitness">PB: {best ? setLabel(best) : "—"}</p>
+            {(() => {
+              const norm = (x: string) => x.trim().toLowerCase();
+              const groups: number[][] = [];
+              state.sets.forEach((st, i) => {
+                const g = groups[groups.length - 1];
+                if (g && i > 0 && norm(state.sets[i - 1]!.exercise) === norm(st.exercise) && st.exercise.trim())
+                  g.push(i);
+                else groups.push([i]);
+              });
+              return groups.map((idx, gi) => {
+                const first = state.sets[idx[0]!]!;
+                const name = first.exercise;
+                const key = norm(name);
+                const prev = key ? previousExercise(history.data ?? [], name, state.date, editing?.id) : undefined;
+                const previous = prev ? setsOf(prev).filter((p) => norm(p.exercise) === key) : [];
+                const best = key
+                  ? (history.data ?? [])
+                      .filter((w) => w.id !== editing?.id)
+                      .flatMap((w) => setsOf(w))
+                      .filter((p) => norm(p.exercise) === key && p.load_type !== "assisted" && p.weight != null && (p.reps ?? 0) > 0)
+                      .sort((a, b) => (b.weight ?? 0) - (a.weight ?? 0) || (b.reps ?? 0) - (a.reps ?? 0))[0]
+                  : undefined;
+                const isPr = (st: FitnessSet) =>
+                  !!best && st.load_type !== "assisted" && st.weight != null && (st.reps ?? 0) > 0 &&
+                  (st.weight > (best.weight ?? 0) || (st.weight === best.weight && (st.reps ?? 0) > (best.reps ?? 0)));
+                const last = idx[idx.length - 1]!;
+                return (
+                  <div key={idx[0]} className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm" data-testid={`exercise-card-${gi}`}>
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <Field label="Exercise">
+                          <TextInput
+                            list="logged-exercises"
+                            value={name}
+                            placeholder="e.g. Bench press"
+                            onChange={(e) =>
+                              patch({ sets: state.sets.map((x, n) => (idx.includes(n) ? { ...x, exercise: e.target.value } : x)) })
+                            }
+                          />
+                        </Field>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Remove exercise"
+                        className="mt-7 grid h-12 w-12 place-items-center rounded-xl text-muted-foreground hover:bg-muted"
+                        onClick={() => {
+                          setRawNumbers({});
+                          const rest = state.sets.filter((_, n) => !idx.includes(n));
+                          patch({ sets: rest.length ? rest : [emptySet()] });
+                        }}
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
-                  )}
-                  <div className="grid grid-cols-2 gap-3">
-                    {numeric(
-                      `Set ${i + 1} weight (kg)`,
-                      rawNumbers[`weight-${i}`] ?? (s.weight == null ? "" : String(s.weight)),
-                      (v) => {
-                        setRawNumbers((r) => ({ ...r, [`weight-${i}`]: v }));
-                        updateSet(i, { weight: numberOrNull(v) });
-                      },
+                    {key && (
+                      <p className="text-sm text-muted-foreground" data-testid={`previous-sets-${gi}`}>
+                        <span className="font-bold text-fitness">PB: {best ? setLabel(best) : "—"}</span>
+                        {prev ? ` · Last: ${prettyDate(prev.date)}` : " · First time logging"}
+                      </p>
                     )}
-                    {numeric(
-                      `Set ${i + 1} reps`,
-                      rawNumbers[`reps-${i}`] ?? (s.reps == null ? "" : String(s.reps)),
-                      (v) => {
-                        setRawNumbers((r) => ({ ...r, [`reps-${i}`]: v }));
-                        updateSet(i, { reps: numberOrNull(v) });
-                      },
-                      false,
-                    )}
-                  </div>
-                  <div className="flex gap-2">
+                    <div className="grid grid-cols-[2rem_1fr_1fr_1fr_2.5rem] items-center gap-2 text-xs font-bold uppercase text-muted-foreground">
+                      <span>Set</span><span>Previous</span><span>Kg</span><span>Reps</span><span />
+                    </div>
+                    {idx.map((i, k) => {
+                      const st = state.sets[i]!;
+                      const p = previous[k];
+                      const pr = isPr(st);
+                      return (
+                        <div
+                          key={i}
+                          data-testid={`training-set-${i}`}
+                          className={`grid grid-cols-[2rem_1fr_1fr_1fr_2.5rem] items-center gap-2 rounded-xl transition-all ${pr ? "bg-gold-soft ring-2 ring-gold" : ""}`}
+                        >
+                          <span className="text-center font-black">{k + 1}</span>
+                          <span className="truncate text-xs text-muted-foreground">
+                            {p ? `${p.weight ?? "BW"}${p.weight != null ? "kg" : ""} × ${p.reps ?? "—"}` : "—"}
+                          </span>
+                          <input
+                            aria-label={`Set ${i + 1} weight (kg)`}
+                            inputMode="decimal"
+                            className="h-12 w-full rounded-xl border bg-background px-2 text-center font-bold"
+                            value={rawNumbers[`weight-${i}`] ?? (st.weight == null ? "" : String(st.weight))}
+                            placeholder={p?.weight != null ? String(p.weight) : ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setRawNumbers((r) => ({ ...r, [`weight-${i}`]: v }));
+                              updateSet(i, { weight: numberOrNull(v) });
+                            }}
+                          />
+                          <input
+                            aria-label={`Set ${i + 1} reps`}
+                            inputMode="numeric"
+                            className="h-12 w-full rounded-xl border bg-background px-2 text-center font-bold"
+                            value={rawNumbers[`reps-${i}`] ?? (st.reps == null ? "" : String(st.reps))}
+                            placeholder={p?.reps != null ? String(p.reps) : ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setRawNumbers((r) => ({ ...r, [`reps-${i}`]: v }));
+                              updateSet(i, { reps: numberOrNull(v) });
+                            }}
+                          />
+                          {pr ? (
+                            <span className="text-center text-xs font-black text-gold">★ PR</span>
+                          ) : (
+                            <button
+                              type="button"
+                              aria-label={`Remove set ${i + 1}`}
+                              className="grid h-10 w-10 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
+                              onClick={() => {
+                                setRawNumbers({});
+                                const rest = state.sets.filter((_, n) => n !== i);
+                                patch({ sets: rest.length ? rest : [emptySet()] });
+                              }}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
                     <GhostButton
-                      aria-label={`Add set after set ${i + 1}`}
+                      aria-label={`Add set to ${name || "exercise"}`}
                       onClick={() => {
                         setRawNumbers({});
-                        patch({
-                          sets: [
-                            ...state.sets.slice(0, i + 1),
-                            nextSet(s),
-                            ...state.sets.slice(i + 1),
-                          ],
-                        });
+                        patch({ sets: [...state.sets.slice(0, last + 1), nextSet(state.sets[last]!), ...state.sets.slice(last + 1)] });
                       }}
                     >
-                      <Plus size={18} className="mx-auto" />
-                    </GhostButton>
-                    <GhostButton
-                      aria-label={`Remove set ${i + 1}`}
-                      onClick={() => {
-                        setRawNumbers({});
-                        patch({ sets: state.sets.filter((_, n) => n !== i) });
-                      }}
-                    >
-                      <Trash2 size={18} className="mx-auto" />
+                      <span className="flex items-center justify-center gap-1"><Plus size={18} /> Add set</span>
                     </GhostButton>
                   </div>
-                </div>
-              );
-            })}
-            <GhostButton onClick={() => patch({ sets: [...state.sets, emptySet()] })}>
-              Add exercise
+                );
+              });
+            })()}
+            <GhostButton onClick={() => { setRawNumbers({}); patch({ sets: [...state.sets, emptySet()] }); }}>
+              <span className="flex items-center justify-center gap-1"><Plus size={18} /> Add exercise</span>
             </GhostButton>
           </section>
         )}
