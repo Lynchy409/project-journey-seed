@@ -12,8 +12,8 @@ export type FitnessSet = {
   side: "both" | "left" | "right";
   effort: number | null;
   notes: string;
-  superset?: string;
-  member?: number;
+  superset?: string | undefined;
+  member?: number | undefined;
 };
 export type WorkoutDetails = {
   slot: FitnessSlot;
