@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, Copy, Plus, Trash2 } from "lucide-react";
+import { Camera, Copy, Plus, Trash2, Zap } from "lucide-react";
 import { Card } from "./AppShell";
 import {
   Empty,
@@ -264,6 +264,7 @@ export function SessionComposer({
   const patch = (value: Partial<SessionDraft>) => setState((s) => ({ ...s, ...value }));
   const [draftError, setDraftError] = useState(false);
   const [rawNumbers, setRawNumbers] = useState<Record<string, string>>({});
+  const [tabs, setTabs] = useState<Record<string, number>>({});
   const [files, setFiles] = useState<File[]>([]);
   const uploaded = useRef<{ url: string; type: "photo" | "video" }[]>([]);
   useEffect(() => {
@@ -447,13 +448,23 @@ export function SessionComposer({
             {(() => {
               const norm = (x: string) => x.trim().toLowerCase();
               const groups: number[][] = [];
+              const same = (a: FitnessSet, b: FitnessSet) =>
+                a.superset || b.superset
+                  ? a.superset === b.superset && (a.member ?? 0) === (b.member ?? 0)
+                  : !!b.exercise.trim() && norm(a.exercise) === norm(b.exercise);
               state.sets.forEach((st, i) => {
                 const g = groups[groups.length - 1];
-                if (g && i > 0 && norm(state.sets[i - 1]!.exercise) === norm(st.exercise) && st.exercise.trim())
-                  g.push(i);
+                if (g && i > 0 && same(state.sets[i - 1]!, st)) g.push(i);
                 else groups.push([i]);
               });
-              return groups.map((idx, gi) => {
+              const blocks: number[][][] = [];
+              groups.forEach((g) => {
+                const b = blocks[blocks.length - 1];
+                const id = state.sets[g[0]!]!.superset;
+                if (b && id && state.sets[b[0]![0]!]!.superset === id) b.push(g);
+                else blocks.push([g]);
+              });
+              const card = (idx: number[], gi: number, letter?: string) => {
                 const first = state.sets[idx[0]!]!;
                 const name = first.exercise;
                 const key = norm(name);
@@ -471,10 +482,10 @@ export function SessionComposer({
                   (st.weight > (best.weight ?? 0) || (st.weight === best.weight && (st.reps ?? 0) > (best.reps ?? 0)));
                 const last = idx[idx.length - 1]!;
                 return (
-                  <div key={idx[0]} className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm" data-testid={`exercise-card-${gi}`}>
+                  <>
                     <div className="flex items-start gap-2">
                       <div className="flex-1">
-                        <Field label="Exercise">
+                        <Field label={letter ? `Exercise ${letter}` : "Exercise"}>
                           <TextInput
                             list="logged-exercises"
                             value={name}
@@ -491,8 +502,7 @@ export function SessionComposer({
                         className="mt-7 grid h-12 w-12 place-items-center rounded-xl text-muted-foreground hover:bg-muted"
                         onClick={() => {
                           setRawNumbers({});
-                          const rest = state.sets.filter((_, n) => !idx.includes(n));
-                          patch({ sets: rest.length ? rest : [emptySet()] });
+                          patch({ sets: tidySupersets(state.sets.filter((_, n) => !idx.includes(n))) });
                         }}
                       >
                         <Trash2 size={18} />
@@ -554,8 +564,7 @@ export function SessionComposer({
                               className="grid h-10 w-10 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
                               onClick={() => {
                                 setRawNumbers({});
-                                const rest = state.sets.filter((_, n) => n !== i);
-                                patch({ sets: rest.length ? rest : [emptySet()] });
+                                patch({ sets: tidySupersets(state.sets.filter((_, n) => n !== i)) });
                               }}
                             >
                               <Trash2 size={16} />
@@ -568,11 +577,80 @@ export function SessionComposer({
                       aria-label={`Add set to ${name || "exercise"}`}
                       onClick={() => {
                         setRawNumbers({});
-                        patch({ sets: [...state.sets.slice(0, last + 1), nextSet(state.sets[last]!), ...state.sets.slice(last + 1)] });
+                        patch({ sets: [...state.sets.slice(0, last + 1), { ...nextSet(state.sets[last]!), superset: state.sets[last]!.superset, member: state.sets[last]!.member }, ...state.sets.slice(last + 1)] });
                       }}
                     >
                       <span className="flex items-center justify-center gap-1"><Plus size={18} /> Add set</span>
                     </GhostButton>
+                  </>
+                );
+              };
+              let gi = 0;
+              return blocks.map((block) => {
+                const id = state.sets[block[0]![0]!]!.superset;
+                if (!id) {
+                  const idx = block[0]!;
+                  const n = gi++;
+                  return (
+                    <div key={idx[0]} className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm" data-testid={`exercise-card-${n}`}>
+                      {card(idx, n)}
+                      <button
+                        type="button"
+                        className="flex min-h-12 w-full items-center justify-center gap-1 rounded-xl text-sm font-bold text-fitness hover:bg-muted"
+                        onClick={() => {
+                          setRawNumbers({});
+                          const sid = crypto.randomUUID();
+                          const last = idx[idx.length - 1]!;
+                          const tagged = state.sets.map((x, k) => (idx.includes(k) ? { ...x, superset: sid, member: 0 } : x));
+                          patch({ sets: [...tagged.slice(0, last + 1), { ...emptySet(), superset: sid, member: 1 }, ...tagged.slice(last + 1)] });
+                          setTabs((t) => ({ ...t, [sid]: 1 }));
+                        }}
+                      >
+                        <Zap size={16} /> Make superset
+                      </button>
+                    </div>
+                  );
+                }
+                const active = Math.min(tabs[id] ?? 0, block.length - 1);
+                const cards = block.map((g) => ({ g, n: gi++ }));
+                const end = block[block.length - 1]!;
+                const lastIdx = end[end.length - 1]!;
+                return (
+                  <div key={id} className="space-y-3 rounded-2xl border-2 border-fitness/40 bg-card p-4 shadow-sm" data-testid="superset-card">
+                    <p className="flex items-center gap-1 text-xs font-black uppercase tracking-wide text-fitness">
+                      <Zap size={14} /> {block.length === 2 ? "Superset" : block.length === 3 ? "Tri-set" : "Giant set"}
+                    </p>
+                    <div className="flex gap-2 overflow-x-auto pb-1" role="tablist">
+                      {block.map((g, t) => {
+                        const nm = state.sets[g[0]!]!.exercise.trim();
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            role="tab"
+                            aria-selected={t === active}
+                            onClick={() => setTabs((x) => ({ ...x, [id]: t }))}
+                            className={`min-h-12 shrink-0 rounded-xl px-3 text-sm font-bold transition-colors ${t === active ? "bg-fitness text-primary-foreground" : "bg-muted text-muted-foreground"}`}
+                          >
+                            {String.fromCharCode(65 + t)}{nm ? `: ${nm}` : ""}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        aria-label="Add exercise to superset"
+                        className="grid min-h-12 w-12 shrink-0 place-items-center rounded-xl bg-muted text-fitness"
+                        onClick={() => {
+                          setRawNumbers({});
+                          const m = Math.max(...block.map((g) => state.sets[g[0]!]!.member ?? 0)) + 1;
+                          patch({ sets: [...state.sets.slice(0, lastIdx + 1), { ...emptySet(), superset: id, member: m }, ...state.sets.slice(lastIdx + 1)] });
+                          setTabs((x) => ({ ...x, [id]: block.length }));
+                        }}
+                      >
+                        <Plus size={18} />
+                      </button>
+                    </div>
+                    {card(cards[active]!.g, cards[active]!.n, String.fromCharCode(65 + active))}
                   </div>
                 );
               });
@@ -781,6 +859,16 @@ export function SessionComposer({
       </fieldset>
     </FormSheet>
   );
+}
+function tidySupersets(sets: FitnessSet[]): FitnessSet[] {
+  if (!sets.length) return [emptySet()];
+  const members = new Map<string, Set<number>>();
+  sets.forEach((x) => x.superset && members.set(x.superset, (members.get(x.superset) ?? new Set()).add(x.member ?? 0)));
+  return sets.map((x) => {
+    if (!x.superset || (members.get(x.superset)?.size ?? 0) > 1) return x;
+    const { superset: _s, member: _m, ...rest } = x;
+    return rest;
+  });
 }
 export function setLabel(s: FitnessSet) {
   const load =
