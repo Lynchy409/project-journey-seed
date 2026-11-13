@@ -9,8 +9,13 @@ import { addGoal, updateGoal, bumpGoal, deleteGoal, goalsQuery, setGoalStatus } 
 import { PILLARS, type Pillar } from "@/lib/pillars";
 import { daysLeft, kids, nextMove, pct } from "@/lib/campaign";
 import type { Json } from "@/integrations/supabase/types";
+import { DatePick } from "@/components/app/DatePick";
 
-type G = { id: string; parent_id: string | null; title: string; target_value: number | null; current_value: number; status: string; created_at: string; pillar: string; metric: string | null; deadline: string | null; horizon: string; tracking: Json };
+export type G = { id: string; parent_id: string | null; title: string; target_value: number | null; current_value: number; status: string; created_at: string; pillar: string; metric: string | null; deadline: string | null; horizon: string; tracking: Json };
+export const CADENCES = ["Once", "Daily", "Weekly", "Monthly"] as const;
+export type Cadence = (typeof CADENCES)[number];
+const trk = (g: G) => (g.tracking as Record<string, unknown> | null) ?? {};
+export const cadenceOf = (g: G): Cadence => (trk(g)["cadence"] as Cadence | undefined) ?? "Once";
 const why = (g: G) => ((g.tracking as Record<string, unknown> | null)?.["why"] as string | undefined) ?? "";
 
 export function GoalCampaign() {
@@ -106,7 +111,7 @@ function Stage({ s, all, n, state, tone, onAdd, onEdit, inv }: { s: G; all: G[];
       {open && (
         <div className="mt-3 space-y-2 text-foreground">
           {tasks.length === 0 && <Leaf g={s} tone={tone} inv={inv} />}
-          {tasks.map((t) => <Leaf key={t.id} g={t} tone={tone} inv={inv} onEdit={() => onEdit(t)} deletable />)}
+          {tasks.map((t) => <TaskNode key={t.id} t={t} all={all} tone={tone} inv={inv} onAdd={onAdd} onEdit={onEdit} />)}
           <button onClick={() => onAdd(s)} className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><Plus className="h-3.5 w-3.5" /> Add task</button>
           <div className="flex justify-end gap-1"><EditBtn onClick={() => onEdit(s)} /><DeleteBtn id={s.id} inv={inv} /></div>
         </div>
@@ -115,7 +120,27 @@ function Stage({ s, all, n, state, tone, onAdd, onEdit, inv }: { s: G; all: G[];
   );
 }
 
-function Leaf({ g, tone, inv, deletable, onEdit }: { g: G; tone: (typeof PILLARS)[Pillar]; inv: () => void; deletable?: boolean; onEdit?: () => void }) {
+function TaskNode({ t, all, tone, inv, onAdd, onEdit, depth = 0 }: { t: G; all: G[]; tone: (typeof PILLARS)[Pillar]; inv: () => void; onAdd: (p: G) => void; onEdit: (e: G) => void; depth?: number }) {
+  const sub = kids(all, t.id);
+  if (!sub.length) return <Leaf g={t} tone={tone} inv={inv} onEdit={() => onEdit(t)} onAddSub={depth < 3 ? () => onAdd(t) : undefined} deletable />;
+  const v = pct(t, all);
+  return (
+    <div className="rounded-xl border p-2">
+      <div className="flex items-center gap-2">
+        <p className="min-w-0 flex-1 truncate text-sm font-extrabold">{t.title}</p>
+        <span className="text-xs font-black tabular-nums">{v}%</span>
+        <EditBtn onClick={() => onEdit(t)} /><DeleteBtn id={t.id} inv={inv} />
+      </div>
+      <div className="mt-2 space-y-2 border-l-2 pl-2">
+        {sub.map((c) => <TaskNode key={c.id} t={c} all={all} tone={tone} inv={inv} onAdd={onAdd} onEdit={onEdit} depth={depth + 1} />)}
+        {depth < 3 && <button onClick={() => onAdd(t)} className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><Plus className="h-3.5 w-3.5" /> Add step</button>}
+      </div>
+    </div>
+  );
+}
+
+export function Leaf({ g, tone, inv, deletable, onEdit, onAddSub, context }: { g: G; tone: (typeof PILLARS)[Pillar]; inv: () => void; deletable?: boolean; onEdit?: () => void; onAddSub?: (() => void) | undefined; context?: string }) {
+  const cad = cadenceOf(g);
   const bump = useMutation({ mutationFn: (by: number) => bumpGoal(g.id, g.current_value, by), onSuccess: inv });
   const tick = useMutation({
     mutationFn: () => setGoalStatus(g.id, g.status === "done" ? "active" : "done"),
@@ -130,6 +155,7 @@ function Leaf({ g, tone, inv, deletable, onEdit }: { g: G; tone: (typeof PILLARS
           <button aria-label="Minus" onClick={() => bump.mutate(-1)} className="flex h-10 w-10 items-center justify-center rounded-full bg-card"><Minus className="h-4 w-4" /></button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold">{g.title}</p>
+            {context && <p className="truncate text-[10px] font-bold text-muted-foreground">→ {context}</p>}
             <p className={`text-xs font-black tabular-nums ${done ? "text-foreground" : tone.text}`}>{g.current_value} / {g.target_value} {g.metric ?? ""}</p>
           </div>
           <button aria-label="Plus" onClick={() => bump.mutate(1)} className={`flex h-10 w-10 items-center justify-center rounded-full ${tone.bg} text-primary-foreground`}><Plus className="h-4 w-4" /></button>
@@ -137,9 +163,14 @@ function Leaf({ g, tone, inv, deletable, onEdit }: { g: G; tone: (typeof PILLARS
       ) : (
         <>
           <button aria-label="Complete" onClick={() => tick.mutate()} className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${done ? `${tone.bg} border-transparent text-primary-foreground` : "border-border bg-card"}`}><Check className="h-4 w-4" /></button>
-          <p className={`min-w-0 flex-1 text-sm font-bold ${done ? "text-muted-foreground line-through" : ""}`}>{g.title}</p>
+          <div className="min-w-0 flex-1">
+            <p className={`text-sm font-bold ${done ? "text-muted-foreground line-through" : ""}`}>{g.title}</p>
+            {context && <p className="truncate text-[10px] font-bold text-muted-foreground">→ {context}</p>}
+          </div>
         </>
       )}
+      {cad !== "Once" && <span className="rounded-full bg-card px-2 py-0.5 text-[10px] font-extrabold uppercase">{cad}</span>}
+      {onAddSub && <button aria-label="Add step" onClick={onAddSub} className="p-1 text-muted-foreground"><Plus className="h-4 w-4" /></button>}
       {onEdit && <EditBtn onClick={onEdit} />}
       {deletable && <DeleteBtn id={g.id} inv={inv} />}
     </div>
@@ -177,14 +208,19 @@ function NodeForm({ parent, edit, onClose, inv }: { parent: G | null; edit?: G |
   const [metric, setMetric] = useState(edit?.metric ?? "");
   const [deadline, setDeadline] = useState(edit?.deadline ?? "");
   const [motto, setMotto] = useState(edit ? why(edit) : "");
+  const [cadence, setCadence] = useState<Cadence>(edit ? cadenceOf(edit) : "Once");
   const save = useMutation({
     mutationFn: async () => {
       if (edit) {
-        const tracking = { ...((edit.tracking as Record<string, unknown> | null) ?? {}), why: motto.trim().slice(0, 200) };
-        await updateGoal(edit.id, { title: title.trim().slice(0, 200), pillar, metric: metric.trim() || null, target_value: target ? Number(target) : null, deadline: deadline || null, ...(isGoal ? { tracking: tracking as Json } : {}) });
+        const tracking = { ...trk(edit), ...(isGoal ? { why: motto.trim().slice(0, 200) } : { cadence }) };
+        await updateGoal(edit.id, { title: title.trim().slice(0, 200), pillar, metric: metric.trim() || null, target_value: target ? Number(target) : null, deadline: deadline || null, tracking: tracking as Json });
         return;
       }
       await addGoal({ title: title.trim().slice(0, 200), pillar, horizon: "campaign" as never, metric: metric.trim() || null, target_value: target ? Number(target) : null, deadline: deadline || null, parent_id: parent?.id ?? null });
+      if (!isGoal && cadence !== "Once") {
+        const { data } = await supabase.from("goals").select("id").eq("title", title.trim().slice(0, 200)).eq("parent_id", parent!.id).order("created_at", { ascending: false }).limit(1);
+        if (data?.[0]) await supabase.from("goals").update({ tracking: { cadence } }).eq("id", data[0].id);
+      }
       if (isGoal && motto.trim()) {
         const { data } = await supabase.from("goals").select("id").eq("title", title.trim().slice(0, 200)).eq("horizon", "campaign").order("created_at", { ascending: false }).limit(1);
         if (data?.[0]) await supabase.from("goals").update({ tracking: { why: motto.trim().slice(0, 200) } }).eq("id", data[0].id);
@@ -194,7 +230,7 @@ function NodeForm({ parent, edit, onClose, inv }: { parent: G | null; edit?: G |
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
   });
   return (
-    <FormSheet open onOpenChange={(v) => !v && onClose()} title={`${edit ? "Edit" : "New"} ${isGoal ? "goal" : isStage ? `stage · ${parent.title}` : `task · ${parent!.title}`}`}>
+    <FormSheet open onOpenChange={(v) => !v && onClose()} title={`${edit ? "Edit" : "New"} ${isGoal ? "goal" : isStage ? `stage · ${parent.title}` : `step · ${parent!.title}`}`}>
       <Field label={isGoal ? "Goal" : isStage ? "Stage / sub-goal" : "Task"}>
         <TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={isGoal ? "Sub-20 min 5k" : isStage ? "Build aerobic base" : "Run 10 miles a week"} />
       </Field>
@@ -212,7 +248,12 @@ function NodeForm({ parent, edit, onClose, inv }: { parent: G | null; edit?: G |
           <Field label="Unit"><TextInput value={metric} onChange={(e) => setMetric(e.target.value)} placeholder="miles" /></Field>
         </div>
       )}
-      <Field label="Completion date (optional)"><TextInput type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} /></Field>
+      {!isGoal && !isStage && (
+        <Field label="Repeat">
+          <div className="grid grid-cols-4 gap-2">{CADENCES.map((c) => <Chip key={c} active={cadence === c} onClick={() => setCadence(c)}>{c}</Chip>)}</div>
+        </Field>
+      )}
+      <Field label="Completion date (optional)"><DatePick value={deadline} onChange={setDeadline} /></Field>
       <PrimaryButton disabled={!title.trim() || save.isPending} onClick={() => save.mutate()}><Flag className="mr-1 inline h-4 w-4" />{edit ? "Save" : "Add"}</PrimaryButton>
     </FormSheet>
   );
