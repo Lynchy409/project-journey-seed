@@ -62,6 +62,14 @@ export async function addGoal(input: {
   if (error) throw error;
 }
 
+export async function updateGoal(
+  id: string,
+  patch: { title?: string; pillar?: string; metric?: string | null; target_value?: number | null; deadline?: string | null; tracking?: Json },
+) {
+  const { error } = await supabase.from("goals").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
 export async function bumpGoal(id: string, current: number, by: number) {
   const { error } = await supabase
     .from("goals")
