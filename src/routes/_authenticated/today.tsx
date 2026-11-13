@@ -156,6 +156,8 @@ function Today() {
         </button>
       </div>
 
+      <LifeTodos />
+
       <DailyDrivers date={date} />
 
       {lesson && (
@@ -168,7 +170,6 @@ function Today() {
         </Card>
       )}
 
-      <LifeTodos />
       <LittleWins compact />
 
 
