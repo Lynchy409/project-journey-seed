@@ -67,6 +67,8 @@ function Journal() {
         <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> New entry</span>
       </PrimaryButton>
 
+      <LifeTodos />
+
       <Card>
         <SectionTitle>Filter</SectionTitle>
         <div className="mt-3 flex flex-wrap gap-2">
