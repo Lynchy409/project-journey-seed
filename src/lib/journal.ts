@@ -4,7 +4,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { uid } from "./day";
 import type { Pillar } from "./pillars";
 
-export type EntryType = "reflection" | "lesson" | "trade_review" | "session_note" | "weekly_review";
+export type EntryType = "idea" | "reflection" | "lesson" | "trade_review" | "session_note" | "weekly_review";
 
 /** Labels for trade-journal note types, shown when they appear in the main journal. */
 export const EXTRA_ENTRY_LABELS: Record<string, string> = {
@@ -14,6 +14,7 @@ export const EXTRA_ENTRY_LABELS: Record<string, string> = {
 };
 
 export const ENTRY_TYPES: { value: EntryType; label: string }[] = [
+  { value: "idea", label: "Idea" },
   { value: "reflection", label: "Reflection" },
   { value: "lesson", label: "Lesson" },
   { value: "trade_review", label: "Trade review" },
