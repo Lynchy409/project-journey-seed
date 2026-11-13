@@ -28,7 +28,7 @@ export function DatePick({ value, onChange }: { value: string; onChange: (v: str
       </div>
       {open && (
         <div className="pointer-events-auto rounded-2xl border bg-card" data-vaul-no-drag>
-          <Calendar mode="single" selected={sel} defaultMonth={sel} onSelect={(d) => { if (d) { onChange(iso(d)); setOpen(false); } }} className="pointer-events-auto p-3" />
+          <Calendar mode="single" selected={sel} {...(sel ? { defaultMonth: sel } : {})} onSelect={(d) => { if (d) { onChange(iso(d)); setOpen(false); } }} className="pointer-events-auto p-3" />
         </div>
       )}
     </div>

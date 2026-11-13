@@ -139,7 +139,7 @@ function TaskNode({ t, all, tone, inv, onAdd, onEdit, depth = 0 }: { t: G; all: 
   );
 }
 
-export function Leaf({ g, tone, inv, deletable, onEdit, onAddSub, context }: { g: G; tone: (typeof PILLARS)[Pillar]; inv: () => void; deletable?: boolean; onEdit?: () => void; onAddSub?: () => void; context?: string }) {
+export function Leaf({ g, tone, inv, deletable, onEdit, onAddSub, context }: { g: G; tone: (typeof PILLARS)[Pillar]; inv: () => void; deletable?: boolean; onEdit?: () => void; onAddSub?: (() => void) | undefined; context?: string }) {
   const cad = cadenceOf(g);
   const bump = useMutation({ mutationFn: (by: number) => bumpGoal(g.id, g.current_value, by), onSuccess: inv });
   const tick = useMutation({
