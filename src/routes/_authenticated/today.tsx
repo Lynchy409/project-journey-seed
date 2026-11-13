@@ -7,6 +7,7 @@ import { AppShell, Card, ProfileButton } from "@/components/app/AppShell";
 import { PlayerCard } from "@/components/app/PlayerCard";
 import { Bar, Empty, Field, FormSheet, PrimaryButton, SectionTitle, SelectInput, TextArea, TextInput, Chip } from "@/components/app/ui";
 import { LittleWins } from "@/components/app/LittleWins";
+import { LifeTodos } from "@/components/app/LifeTodos";
 import { SpanishDailyTasks } from "@/components/app/SpanishHub";
 import { findSpanish, spanishDoneForDate, spanishItemsQuery } from "@/lib/spanish";
 import { FitnessDailyTasks, FitnessQuickLog } from "@/components/app/FitnessHub";
@@ -167,6 +168,7 @@ function Today() {
         </Card>
       )}
 
+      <LifeTodos />
       <LittleWins compact />
 
 
