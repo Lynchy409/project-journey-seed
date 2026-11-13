@@ -18,7 +18,7 @@ export function GoalCampaign() {
   const { data } = useQuery(goalsQuery);
   const all = ((data ?? []) as G[]).filter((g) => g.horizon === "campaign");
   const roots = kids(all, null);
-  const [form, setForm] = useState<{ parent: G | null; edit?: G } | null>(null);
+  const [form, setForm] = useState<{ parent: G | null; edit?: G | undefined } | null>(null);
   const inv = () => qc.invalidateQueries({ queryKey: ["goals"] });
 
   return (
@@ -168,7 +168,7 @@ function Ring({ pct: v, tone }: { pct: number; tone: string }) {
   );
 }
 
-function NodeForm({ parent, edit, onClose, inv }: { parent: G | null; edit?: G; onClose: () => void; inv: () => void }) {
+function NodeForm({ parent, edit, onClose, inv }: { parent: G | null; edit?: G | undefined; onClose: () => void; inv: () => void }) {
   const isGoal = !parent;
   const isStage = parent && !parent.parent_id;
   const [title, setTitle] = useState(edit?.title ?? "");
