@@ -11,6 +11,7 @@ import { addInnerItems, deleteInnerItem, innerItemsQuery, type InnerItem } from 
 import { supabase } from "@/integrations/supabase/client";
 import { OBJECTIVE_XP, STREAK_XP, lifeFlight, verseOfDay } from "@/lib/faith";
 import flight from "@/assets/flight-home.jpg";
+import { GoalCampaign } from "@/components/app/GoalCampaign";
 
 export const Route = createFileRoute("/_authenticated/inner")({
   head: () => ({
@@ -26,12 +27,12 @@ export const Route = createFileRoute("/_authenticated/inner")({
   component: Inner,
 });
 
-type Tab = "faith" | "objectives" | "conscience";
-const TITLES: Record<Tab, string> = { faith: "Faith", objectives: "Objectives", conscience: "Conscience" };
+type Tab = "goals" | "faith" | "objectives" | "conscience";
+const TITLES: Record<Tab, string> = { goals: "Goals", faith: "Faith", objectives: "Objectives", conscience: "Conscience" };
 const qk = { queryKey: ["inner_items"] };
 
 function Inner() {
-  const [tab, setTab] = useState<Tab>("faith");
+  const [tab, setTab] = useState<Tab>("goals");
   return (
     <AppShell eyebrow="Inner" title={TITLES[tab]}>
       <FlightHome />
@@ -40,6 +41,7 @@ function Inner() {
           <Chip key={t} active={tab === t} onClick={() => setTab(t)} className="flex-1">{TITLES[t]}</Chip>
         ))}
       </div>
+      {tab === "goals" && <GoalCampaign />}
       {tab === "faith" && <Faith />}
       {tab === "objectives" && <Objectives />}
       {tab === "conscience" && <Conscience />}
