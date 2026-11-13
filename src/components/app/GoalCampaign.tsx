@@ -18,6 +18,13 @@ const trk = (g: G) => (g.tracking as Record<string, unknown> | null) ?? {};
 export const cadenceOf = (g: G): Cadence => (trk(g)["cadence"] as Cadence | undefined) ?? "Once";
 const why = (g: G) => ((g.tracking as Record<string, unknown> | null)?.["why"] as string | undefined) ?? "";
 
+/** Walk up to the top-level goal of a node. */
+export function rootOf(n: G | null, all: G[]): G | null {
+  let cur = n;
+  while (cur?.parent_id) cur = all.find((x) => x.id === cur!.parent_id) ?? null;
+  return cur;
+}
+
 export function GoalCampaign() {
   const qc = useQueryClient();
   const { data } = useQuery(goalsQuery);
@@ -33,7 +40,7 @@ export function GoalCampaign() {
       )}
       {roots.map((g) => <Campaign key={g.id} g={g} all={all} onAdd={(p) => setForm({ parent: p })} onEdit={(e) => setForm({ parent: all.find((x) => x.id === e.parent_id) ?? null, edit: e })} inv={inv} />)}
       <PrimaryButton onClick={() => setForm({ parent: null })}><Plus className="mr-1 inline h-4 w-4" />New goal</PrimaryButton>
-      {form && <NodeForm parent={form.parent} edit={form.edit} onClose={() => setForm(null)} inv={inv} />}
+      {form && <NodeForm parent={form.parent} edit={form.edit} max={rootOf(form.parent ?? null, all)?.deadline ?? null} onClose={() => setForm(null)} inv={inv} />}
     </>
   );
 }
@@ -44,7 +51,6 @@ function Campaign({ g, all, onAdd, onEdit, inv }: { g: G; all: G[]; onAdd: (p: G
   const stages = kids(all, g.id);
   const next = nextMove(g, all);
   const left = daysLeft(g.deadline);
-  const activeIdx = stages.findIndex((s) => pct(s, all) < 100);
   return (
     <div className="overflow-hidden rounded-3xl bg-card shadow-float">
       <div className={`${p.soft} p-5`}>
@@ -78,10 +84,10 @@ function Campaign({ g, all, onAdd, onEdit, inv }: { g: G; all: G[]; onAdd: (p: G
 
       <div className="space-y-3 p-4">
         {stages.map((s, i) => (
-          <Stage key={s.id} s={s} all={all} n={i + 1} state={activeIdx === -1 || i < activeIdx ? "done" : i === activeIdx ? "active" : "queued"} tone={p} onAdd={onAdd} onEdit={onEdit} inv={inv} />
+          <Stage key={s.id} s={s} all={all} n={i + 1} state={pct(s, all) >= 100 ? "done" : "active"} tone={p} onAdd={onAdd} onEdit={onEdit} inv={inv} />
         ))}
         <button onClick={() => onAdd(g)} className="flex min-h-12 w-full items-center justify-center gap-1 rounded-2xl border-2 border-dashed text-sm font-bold text-muted-foreground">
-          <Plus className="h-4 w-4" /> Add stage
+          <Plus className="h-4 w-4" /> Add sub-goal
         </button>
       </div>
     </div>
@@ -89,7 +95,7 @@ function Campaign({ g, all, onAdd, onEdit, inv }: { g: G; all: G[]; onAdd: (p: G
 }
 
 function Stage({ s, all, n, state, tone, onAdd, onEdit, inv }: { s: G; all: G[]; n: number; state: "done" | "active" | "queued"; tone: (typeof PILLARS)[Pillar]; onAdd: (p: G) => void; onEdit: (e: G) => void; inv: () => void }) {
-  const [open, setOpen] = useState(state === "active");
+  const [open, setOpen] = useState(state !== "done");
   const progress = pct(s, all);
   const tasks = kids(all, s.id);
   return (
@@ -99,7 +105,7 @@ function Stage({ s, all, n, state, tone, onAdd, onEdit, inv }: { s: G; all: G[];
           {state === "done" ? <Check className="h-4 w-4" /> : state === "queued" ? <Lock className="h-4 w-4" /> : n}
         </span>
         <button onClick={() => setOpen(!open)} className="min-w-0 flex-1 text-left">
-          <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">Stage {n}{s.deadline ? ` · ${(daysLeft(s.deadline) ?? 0) < 0 ? "date passed" : `${daysLeft(s.deadline)} days left`} · ${new Date(s.deadline + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}</p>
+          <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground">Sub-goal {n}{s.deadline ? ` · ${(daysLeft(s.deadline) ?? 0) < 0 ? "date passed" : `${daysLeft(s.deadline)} days left`} · ${new Date(s.deadline + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}</p>
           <p className="text-sm font-extrabold">{s.title}</p>
         </button>
         <span className="text-sm font-black tabular-nums">{progress}%</span>
@@ -112,7 +118,7 @@ function Stage({ s, all, n, state, tone, onAdd, onEdit, inv }: { s: G; all: G[];
         <div className="mt-3 space-y-2 text-foreground">
           {tasks.length === 0 && <Leaf g={s} tone={tone} inv={inv} />}
           {tasks.map((t) => <TaskNode key={t.id} t={t} all={all} tone={tone} inv={inv} onAdd={onAdd} onEdit={onEdit} />)}
-          <button onClick={() => onAdd(s)} className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><Plus className="h-3.5 w-3.5" /> Add task</button>
+          <button onClick={() => onAdd(s)} className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><Plus className="h-3.5 w-3.5" /> Add objective / step</button>
           <div className="flex justify-end gap-1"><EditBtn onClick={() => onEdit(s)} /><DeleteBtn id={s.id} inv={inv} /></div>
         </div>
       )}
@@ -122,7 +128,7 @@ function Stage({ s, all, n, state, tone, onAdd, onEdit, inv }: { s: G; all: G[];
 
 function TaskNode({ t, all, tone, inv, onAdd, onEdit, depth = 0 }: { t: G; all: G[]; tone: (typeof PILLARS)[Pillar]; inv: () => void; onAdd: (p: G) => void; onEdit: (e: G) => void; depth?: number }) {
   const sub = kids(all, t.id);
-  if (!sub.length) return <Leaf g={t} tone={tone} inv={inv} onEdit={() => onEdit(t)} onAddSub={depth < 3 ? () => onAdd(t) : undefined} deletable />;
+  if (!sub.length) return <Leaf g={t} tone={tone} inv={inv} onEdit={() => onEdit(t)} onAddSub={() => onAdd(t)} deletable />;
   const v = pct(t, all);
   return (
     <div className="rounded-xl border p-2">
@@ -133,7 +139,7 @@ function TaskNode({ t, all, tone, inv, onAdd, onEdit, depth = 0 }: { t: G; all: 
       </div>
       <div className="mt-2 space-y-2 border-l-2 pl-2">
         {sub.map((c) => <TaskNode key={c.id} t={c} all={all} tone={tone} inv={inv} onAdd={onAdd} onEdit={onEdit} depth={depth + 1} />)}
-        {depth < 3 && <button onClick={() => onAdd(t)} className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><Plus className="h-3.5 w-3.5" /> Add step</button>}
+        {<button onClick={() => onAdd(t)} className="flex items-center gap-1 text-xs font-bold text-muted-foreground"><Plus className="h-3.5 w-3.5" /> Add step</button>}
       </div>
     </div>
   );
@@ -199,7 +205,7 @@ function Ring({ pct: v, tone }: { pct: number; tone: string }) {
   );
 }
 
-function NodeForm({ parent, edit, onClose, inv }: { parent: G | null; edit?: G | undefined; onClose: () => void; inv: () => void }) {
+function NodeForm({ parent, edit, max, onClose, inv }: { parent: G | null; edit?: G | undefined; max: string | null; onClose: () => void; inv: () => void }) {
   const isGoal = !parent;
   const isStage = parent && !parent.parent_id;
   const [title, setTitle] = useState(edit?.title ?? "");
@@ -230,8 +236,8 @@ function NodeForm({ parent, edit, onClose, inv }: { parent: G | null; edit?: G |
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not save"),
   });
   return (
-    <FormSheet open onOpenChange={(v) => !v && onClose()} title={`${edit ? "Edit" : "New"} ${isGoal ? "goal" : isStage ? `stage · ${parent.title}` : `step · ${parent!.title}`}`}>
-      <Field label={isGoal ? "Goal" : isStage ? "Stage / sub-goal" : "Task"}>
+    <FormSheet open onOpenChange={(v) => !v && onClose()} title={`${edit ? "Edit" : "New"} ${isGoal ? "goal" : isStage ? `sub-goal · ${parent.title}` : `step · ${parent!.title}`}`}>
+      <Field label={isGoal ? "Goal" : isStage ? "Sub-goal" : "Objective / step"}>
         <TextInput autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder={isGoal ? "Sub-20 min 5k" : isStage ? "Build aerobic base" : "Run 10 miles a week"} />
       </Field>
       {isGoal && (
@@ -253,7 +259,7 @@ function NodeForm({ parent, edit, onClose, inv }: { parent: G | null; edit?: G |
           <div className="grid grid-cols-4 gap-2">{CADENCES.map((c) => <Chip key={c} active={cadence === c} onClick={() => setCadence(c)}>{c}</Chip>)}</div>
         </Field>
       )}
-      <Field label="Completion date (optional)"><DatePick value={deadline} onChange={setDeadline} /></Field>
+      <Field label="Completion date (optional)"><DatePick value={deadline} onChange={setDeadline} max={isGoal ? null : max} /></Field>
       <PrimaryButton disabled={!title.trim() || save.isPending} onClick={() => save.mutate()}><Flag className="mr-1 inline h-4 w-4" />{edit ? "Save" : "Add"}</PrimaryButton>
     </FormSheet>
   );
