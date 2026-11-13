@@ -5,6 +5,7 @@ import { Pencil, Pin, Plus, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell, Card } from "@/components/app/AppShell";
 import { Chip, Empty, Field, FormSheet, PrimaryButton, SectionTitle, TextArea, TextInput } from "@/components/app/ui";
+import { LifeTodos } from "@/components/app/LifeTodos";
 import { LessonToggle } from "@/components/app/LessonToggle";
 import { PILLARS, type Pillar } from "@/lib/pillars";
 import { prettyDate, todayISO } from "@/lib/dates";
@@ -65,6 +66,8 @@ function Journal() {
       <PrimaryButton onClick={() => { setEditing(null); setOpen(true); }}>
         <span className="flex items-center justify-center gap-2"><Plus className="h-5 w-5" /> New entry</span>
       </PrimaryButton>
+
+      <LifeTodos />
 
       <Card>
         <SectionTitle>Filter</SectionTitle>
