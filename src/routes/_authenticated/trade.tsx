@@ -612,7 +612,9 @@ function TradeSheet({
     cash: "",
     cash_sign: "+",
   });
-  const [trendRows, setTrendRows] = useState<TrendCtx[]>([{ tf: "", direction: "bullish" }]);
+  const [trendRows, setTrendRows] = useState<TrendCtx[]>(
+    QUICK_TFS.map((tf) => ({ tf, direction: "bullish" as TrendCtx["direction"] })),
+  );
   const [confRows, setConfRows] = useState<Confluence[]>([{ type: "", tf: "", role: "context" }]);
   const [further, setFurther] = useState<FurtherLevels>({ sought: "unknown", level: "", when: "" });
   const [markLesson, setMarkLesson] = useState(false);
