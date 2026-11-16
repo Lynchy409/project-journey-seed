@@ -89,6 +89,8 @@ import {
 } from "@/lib/trade";
 import { addEntry, deleteEntry, tradeLessonsQuery, updateEntry } from "@/lib/journal";
 
+const QUICK_TFS = ["5m", "15m", "1h", "4h"];
+
 export const Route = createFileRoute("/_authenticated/trade")({
   validateSearch: (search: Record<string, unknown>): { tab?: "news" } =>
     search["tab"] === "news" ? { tab: "news" } : {},
@@ -919,7 +921,7 @@ function TradeSheet({
       </Field>
       <Field label="Entry timeframe">
         <div className="grid grid-cols-4 gap-2">
-          {TIMEFRAMES.map((tf) => (
+          {QUICK_TFS.map((tf) => (
             <Chip
               key={tf}
               active={f.entry_tf === tf}
@@ -929,6 +931,12 @@ function TradeSheet({
             </Chip>
           ))}
         </div>
+        <TextInput
+          className="mt-2"
+          value={f.entry_tf}
+          onChange={(e) => set("entry_tf", e.target.value)}
+          placeholder="Or type your own, e.g. 2m"
+        />
       </Field>
       <Field label="Confirmation">
         <SelectInput value={f.confirmation} onChange={(e) => set("confirmation", e.target.value)}>
@@ -2033,10 +2041,17 @@ function BacktestSheet({
           />
         </Field>
         <Field label="Timeframe">
+          <div className="mb-2 grid grid-cols-4 gap-1">
+            {QUICK_TFS.map((tf) => (
+              <Chip key={tf} active={f.timeframe === tf} onClick={() => setF((s) => ({ ...s, timeframe: s.timeframe === tf ? "" : tf }))} className="!px-1 text-xs">
+                {tf}
+              </Chip>
+            ))}
+          </div>
           <TextInput
             value={f.timeframe}
             onChange={(e) => setF((s) => ({ ...s, timeframe: e.target.value }))}
-            placeholder="e.g. 1m / 5m"
+            placeholder="Or type your own"
           />
         </Field>
       </div>

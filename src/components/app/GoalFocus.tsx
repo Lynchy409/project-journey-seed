@@ -23,7 +23,7 @@ export function GoalFocus() {
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm font-extrabold"><Target className="h-4 w-4" /> Goal moves today</p>
+        <p className="flex items-center gap-2 text-sm font-extrabold"><Target className="h-4 w-4" /> Next Steps</p>
         <Link to="/inner" className="text-xs font-bold text-muted-foreground">All goals →</Link>
       </div>
       <div className="space-y-2">
