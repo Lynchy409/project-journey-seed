@@ -702,7 +702,7 @@ function TradeSheet({
         cash: "",
         cash_sign: "+",
       });
-      setTrendRows([{ tf: "", direction: "bullish" }]);
+      setTrendRows(QUICK_TFS.map((tf) => ({ tf, direction: "bullish" as TrendCtx["direction"] })));
       setConfRows([{ type: "", tf: "", role: "context" }]);
       setFurther({ sought: "unknown", level: "", when: "" });
       setMarkLesson(false);
@@ -822,7 +822,7 @@ function TradeSheet({
         market_feeling: "",
         pair_feeling: "",
       }));
-      setTrendRows([{ tf: "", direction: "bullish" }]);
+      setTrendRows(QUICK_TFS.map((tf) => ({ tf, direction: "bullish" as TrendCtx["direction"] })));
       setConfRows([{ type: "", tf: "", role: "context" }]);
       setFurther({ sought: "unknown", level: "", when: "" });
     },
