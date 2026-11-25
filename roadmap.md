@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Trade: spreadsheet-matched logger with lots, SL/TP, partial fills, risk and news; filtered rankings, grid/export and safe historical import.
+- [ ] Import all 75 uploaded trades into Historical; future trades stay split by account. Save the two missing dates as blank and retain original row order.
+
 - [x] Finish agreed Train redesign: multi-type fresh logs, decimal strength/PBs, fitness/recovery inputs, draft resume, session editing, exercise history and automatic Today completion; verified without publishing.
 
 - [x] Fitness migration installed; real preview mixed-session saves/reloads/edits and linked tasks verified; goal calculations, atomic failures and two-user isolation regression tests pass. Nothing published.

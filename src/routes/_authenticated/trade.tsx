@@ -1,3 +1,6 @@
+import { TradeSpreadsheet } from "@/components/app/trade/TradeSpreadsheet";
+import { TradeRiskFields } from "@/components/app/trade/TradeRiskFields";
+import { emptySheet, sheetOf, calcTrade, numeric, type SheetDetail, TYPES } from "@/lib/trade-sheet";
 import { TradeCalendar } from "@/components/app/TradeCalendar";
 import { LearningLink } from "@/components/app/MarketHub";
 import { TradeJournal } from "@/components/app/trade/TradeJournal";
@@ -115,10 +118,11 @@ export const Route = createFileRoute("/_authenticated/trade")({
   component: Trade,
 });
 
-type Tab = "log" | "journal" | "news" | "tools";
+type Tab = "log" | "sheet" | "journal" | "news" | "tools";
 
 const TABS: { value: Tab; label: string; title: string }[] = [
   { value: "log", label: "Log", title: "Trade log" },
+  { value: "sheet", label: "Sheet", title: "Trade spreadsheet" },
   { value: "journal", label: "Journal", title: "Trade journal" },
   { value: "news", label: "News", title: "News & wisdom" },
   { value: "tools", label: "Tools", title: "Rules & calculator" },
@@ -127,12 +131,13 @@ const TABS: { value: Tab; label: string; title: string }[] = [
 function Trade() {
   const { tab: requestedTab } = Route.useSearch();
   const [tab, setTab] = useState<Tab>(requestedTab ?? "log");
+  const [sheetTrade, setSheetTrade] = useState<TradeRow | null>(null);
   useEffect(() => {
     if (requestedTab) setTab(requestedTab);
   }, [requestedTab]);
   return (
-    <AppShell eyebrow="Trading" title={TABS.find((t) => t.value === tab)!.title}>
-      <div className="grid grid-cols-4 gap-1 rounded-full bg-secondary p-1">
+    <AppShell eyebrow="Trading" title={TABS.find((t) => t.value === tab)?.title ?? "Trade"}>
+      <div className="grid grid-cols-5 gap-1 rounded-full bg-secondary p-1">
         {TABS.map((t) => (
           <button
             key={t.value}
@@ -148,6 +153,8 @@ function Trade() {
         ))}
       </div>
       {tab === "log" && <LogTab />}
+      {tab === "sheet" && <TradeSpreadsheet onEdit={setSheetTrade} />}
+      <TradeSheet open={sheetTrade !== null} onOpenChange={(v) => { if (!v) setSheetTrade(null); }} trade={sheetTrade} />
       {tab === "journal" && (
         <>
           <TradeCalendar />
@@ -617,6 +624,8 @@ function TradeSheet({
   );
   const [confRows, setConfRows] = useState<Confluence[]>([{ type: "", tf: "", role: "context" }]);
   const [further, setFurther] = useState<FurtherLevels>({ sought: "unknown", level: "", when: "" });
+  const [detail, setDetail] = useState<SheetDetail>(emptySheet);
+  const calculated = calcTrade(f.pair, f.direction, f.entry, f.stop, f.target, detail);
   const [markLesson, setMarkLesson] = useState(false);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -624,6 +633,7 @@ function TradeSheet({
 
   useEffect(() => {
     if (!open) return;
+    setDetail(trade ? sheetOf(trade) : emptySheet());
     if (trade) {
       setF({
         date: trade.date,
@@ -721,6 +731,15 @@ function TradeSheet({
 
   const save = useMutation({
     mutationFn: async () => {
+      const quantities = [['Entry',f.entry],['Stop',f.stop],['Target',f.target],['Lot size',detail.lot],['Exit',detail.exit],['Risk',detail.riskCash]];
+      for (const [label,v] of quantities) { if (v && (numeric(v) === null || Number(v) <= 0)) throw new Error(`${label} must be a positive number`); }
+      if (detail.exitMode === 'scaled') {
+        if (!detail.fills.length) throw new Error('Add at least one partial exit');
+        if (detail.fills.some(fill => numeric(fill.percent) === null || Number(fill.percent) <= 0 || numeric(fill.price) === null || Number(fill.price) <= 0 || (fill.cash && numeric(fill.cash) === null))) throw new Error('Each partial needs a valid percentage and exit price');
+        if (calculated.closed > 100) throw new Error('Partial exits cannot exceed 100% of the original position');
+        if (f.outcome !== 'open' && calculated.closed !== 100) throw new Error('Closed trades must account for 100% of the position');
+      }
+      if (f.entry && f.stop && calculated.stopPips === null) throw new Error('Stop must be below a long entry or above a short entry');
       let screenshotUrl: string | null = f.screenshot_url || null;
       if (photo) screenshotUrl = await uploadTradeScreenshot(photo);
       const payload = {
@@ -738,9 +757,9 @@ function TradeSheet({
         entry: f.entry ? Number(f.entry) : null,
         stop: f.stop ? Number(f.stop) : null,
         target: f.target ? Number(f.target) : null,
-        rr: f.rr ? Number(f.rr) : null,
+        rr: f.rr ? Number(f.rr) : calculated.plannedR,
         outcome: f.outcome,
-        result_r: f.result_r ? Number(f.result_r) : null,
+        result_r: f.result_r ? Number(f.result_r) : f.outcome === 'open' ? null : detail.riskCash && f.cash ? ((f.cash_sign === '-' ? -1 : 1) * Number(f.cash)) / Number(detail.riskCash) : calculated.realisedR,
         market_feeling: f.market_feeling || null,
         pair_feeling: f.pair_feeling || null,
         emotions: f.emotions || null,
@@ -748,10 +767,12 @@ function TradeSheet({
         market_did: f.market_did || null,
         external_lesson: f.external_lesson || null,
         trend_context: trendRows.filter((r) => r.tf),
-        htf_confluences: confRows.filter((r) => r.type && r.tf),
+        htf_confluences: confRows.filter((r) => r.type),
         further_levels: {
+          ...(trade?.further_levels && typeof trade.further_levels === "object" && !Array.isArray(trade.further_levels) ? trade.further_levels : {}),
           ...further,
-          cash: f.cash ? (f.cash_sign === "-" ? -1 : 1) * Number(f.cash) : null,
+          sheet: detail,
+          cash: f.cash ? (f.cash_sign === "-" ? -1 : 1) * Number(f.cash) : detail.exitMode === "scaled" && calculated.closed === 100 && detail.fills.every(fill => numeric(fill.cash) !== null) ? detail.fills.reduce((sum, fill) => sum + Number(fill.cash), 0) : null,
         },
         screenshot_url: screenshotUrl,
         news_events:
@@ -911,6 +932,7 @@ function TradeSheet({
           ))}
         </SelectInput>
       </Field>
+      {f.source === "historical" && <p className="text-sm font-bold text-muted-foreground">Historical trade — account unknown</p>}
       <Field label="Setup type">
         <SelectInput value={f.setup} onChange={(e) => set("setup", e.target.value)}>
           <option value="">—</option>
@@ -1061,6 +1083,8 @@ function TradeSheet({
                 className="flex-1"
               >
                 <option value="">Type</option>
+                {TYPES.map(type => <option key={type} value={type}>{type}</option>)}
+                {row.type && !TYPES.includes(row.type) && !SETUPS.some(s => s.value === row.type) && <option value={row.type}>{row.type}</option>}
                 {SETUPS.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
@@ -1129,14 +1153,14 @@ function TradeSheet({
             onChange={(e) => set("entry", e.target.value)}
           />
         </Field>
-        <Field label="Stop">
+        <Field label="Stop loss">
           <TextInput
             inputMode="decimal"
             value={f.stop}
             onChange={(e) => set("stop", e.target.value)}
           />
         </Field>
-        <Field label="Target">
+        <Field label="Take profit">
           <TextInput
             inputMode="decimal"
             value={f.target}
@@ -1148,6 +1172,12 @@ function TradeSheet({
         </Field>
       </div>
 
+      <TradeRiskFields value={detail} onChange={setDetail} />
+      <div className="grid grid-cols-3 gap-2 border-y py-3">
+        <Stat label="SL pips" value={calculated.stopPips === null ? '—' : Number(calculated.stopPips.toFixed(2))} />
+        <Stat label="Planned R" value={calculated.plannedR === null ? '—' : Number(calculated.plannedR.toFixed(2))} />
+        <Stat label="Price-based R" value={calculated.realisedR === null ? '—' : Number(calculated.realisedR.toFixed(2))} />
+      </div>
       <FormSection>Feelings</FormSection>
       <Field label="Overall feeling about the market today">
         <TextInput
