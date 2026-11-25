@@ -1,13 +1,129 @@
-import test from 'node:test';
-import assert from 'node:assert/strict';
-import {calcTrade,emptySheet,summary,parseRows,importPayload,duplicateImport,csv} from '../src/lib/trade-sheet';
-import type {TradeRow} from '../src/lib/trade';
-const t=(patch:Partial<TradeRow>={}):TradeRow=>({id:'a',user_id:'u',date:'2025-01-08',time_of_trade:'08:24:00',pair:'EURUSD',entry:1.03329,direction:'short',outcome:'win',source:'historical',strategy:'spreadsheet',further_levels:{sheet:{...emptySheet(),exit:'1.0326'}},created_at:'',updated_at:'',exit_time:null,confirmation:null,confirmation_tf:null,emotions:null,entry_tf:null,external_lesson:null,htf_confluences:null,market_did:null,market_feeling:null,news_events:null,notes:null,pair_feeling:null,result_r:null,rr:null,screenshot_url:null,setup:null,stop:null,target:null,trend_context:null,...patch});
-test('sheet EURUSD short example gives 6.9 pips without inventing R',()=>{const c=calcTrade('EURUSD','short',1.03329,null,null,{...emptySheet(),exit:'1.0326'});assert.ok(Math.abs((c.pips??0)-6.9)<1e-8);assert.equal(c.realisedR,null);});
-test('JPY pair uses .01 pip size',()=>{assert.ok(Math.abs((calcTrade('GBPJPY','short',192.808,null,null,{...emptySheet(),exit:'192.785'}).pips??0)-2.3)<1e-8);});
-test('50% at 2R and 50% at 4R realise 3R',()=>{const c=calcTrade('EURUSD','long',1.1,1.099,1.104,{...emptySheet(),exitMode:'scaled',fills:[{percent:'50',price:'1.102',cash:'',time:''},{percent:'50',price:'1.104',cash:'',time:''}]});assert.ok(Math.abs((c.realisedR??0)-3)<1e-8);assert.equal(c.closed,100);});
-test('incomplete partials do not claim final pips or R',()=>{const c=calcTrade('EURUSD','long',1.1,1.099,1.104,{...emptySheet(),exitMode:'scaled',fills:[{percent:'50',price:'1.102',cash:'',time:''}]});assert.equal(c.realisedR,null);assert.equal(c.pips,null);});
-test('missing R is excluded from coverage and never treated as zero',()=>{const s=summary([t(),t({id:'b',outcome:'loss',result_r:-1})],'R');assert.equal(s.count,2);assert.equal(s.coverage,1);assert.equal(s.total,-1);assert.equal(s.winRate,50);});
-test('import keeps unknown dates for review and preserves out of zone',()=>{const rs=parseRows([['Date','Pair','HTF Type','Out of TF','Out of Type'],['','GBPJPY','LS','15m','FVG']]);const r=rs[0];assert.ok(r);assert.equal(r.date,'');const p=importPayload(r,'historical');assert.equal(p.source,'historical');assert.equal(p.further_levels.sheet.outType,'FVG');});
-test('import avoids matching an existing trade twice',()=>{const r=parseRows([['Date','Time','Pair','HTF Type','Entry price','Dir','Result'],['08/01/25','08:24','EURUSD','BB','1.03329','Short','W']])[0];assert.ok(r);assert.equal(duplicateImport(r,[t()]),true);});
-test('CSV includes risk fields and protects spreadsheet formula text',()=>{const out=csv([t({notes:'=1+1'})]);assert.ok(out.includes('Lot size'));assert.ok(out.includes("'=1+1"));});
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  calcTrade,
+  emptySheet,
+  summary,
+  parseRows,
+  importPayload,
+  duplicateImport,
+  csv,
+} from "../src/lib/trade-sheet";
+import type { TradeRow } from "../src/lib/trade";
+const t = (patch: Partial<TradeRow> = {}): TradeRow => ({
+  id: "a",
+  user_id: "u",
+  date: "2025-01-08",
+  traded_on: "2025-01-08",
+  time_of_trade: "08:24:00",
+  pair: "EURUSD",
+  entry: 1.03329,
+  direction: "short",
+  outcome: "win",
+  source: "historical",
+  strategy: "spreadsheet",
+  further_levels: { sheet: { ...emptySheet(), exit: "1.0326" } },
+  created_at: "",
+  updated_at: "",
+  exit_time: null,
+  confirmation: null,
+  confirmation_tf: null,
+  emotions: null,
+  entry_tf: null,
+  external_lesson: null,
+  htf_confluences: null,
+  market_did: null,
+  market_feeling: null,
+  news_events: null,
+  notes: null,
+  pair_feeling: null,
+  result_r: null,
+  rr: null,
+  screenshot_url: null,
+  setup: null,
+  stop: null,
+  target: null,
+  trend_context: null,
+  ...patch,
+});
+test("sheet EURUSD short example gives 6.9 pips without inventing R", () => {
+  const c = calcTrade("EURUSD", "short", 1.03329, null, null, { ...emptySheet(), exit: "1.0326" });
+  assert.ok(Math.abs((c.pips ?? 0) - 6.9) < 1e-8);
+  assert.equal(c.realisedR, null);
+});
+test("JPY pair uses .01 pip size", () => {
+  assert.ok(
+    Math.abs(
+      (calcTrade("GBPJPY", "short", 192.808, null, null, { ...emptySheet(), exit: "192.785" })
+        .pips ?? 0) - 2.3,
+    ) < 1e-8,
+  );
+});
+test("50% at 2R and 50% at 4R realise 3R", () => {
+  const c = calcTrade("EURUSD", "long", 1.1, 1.099, 1.104, {
+    ...emptySheet(),
+    exitMode: "scaled",
+    fills: [
+      { percent: "50", price: "1.102", cash: "", time: "" },
+      { percent: "50", price: "1.104", cash: "", time: "" },
+    ],
+  });
+  assert.ok(Math.abs((c.realisedR ?? 0) - 3) < 1e-8);
+  assert.equal(c.closed, 100);
+});
+test("incomplete partials do not claim final pips or R", () => {
+  const c = calcTrade("EURUSD", "long", 1.1, 1.099, 1.104, {
+    ...emptySheet(),
+    exitMode: "scaled",
+    fills: [{ percent: "50", price: "1.102", cash: "", time: "" }],
+  });
+  assert.equal(c.realisedR, null);
+  assert.equal(c.pips, null);
+});
+test("missing R is excluded from coverage and never treated as zero", () => {
+  const s = summary([t(), t({ id: "b", outcome: "loss", result_r: -1 })], "R");
+  assert.equal(s.count, 2);
+  assert.equal(s.coverage, 1);
+  assert.equal(s.total, -1);
+  assert.equal(s.winRate, 50);
+});
+test("import keeps unknown dates for review and preserves out of zone", () => {
+  const rs = parseRows([
+    ["Date", "Pair", "HTF Type", "Out of TF", "Out of Type"],
+    ["", "GBPJPY", "LS", "15m", "FVG"],
+  ]);
+  const r = rs[0];
+  assert.ok(r);
+  assert.equal(r.date, "");
+  const p = importPayload(r, "historical");
+  assert.equal(p.source, "historical");
+  assert.equal(p.further_levels.sheet.outType, "FVG");
+});
+test("import avoids matching an existing trade twice", () => {
+  const r = parseRows([
+    ["Date", "Time", "Pair", "HTF Type", "Entry price", "Dir", "Result"],
+    ["08/01/25", "08:24", "EURUSD", "BB", "1.03329", "Short", "W"],
+  ])[0];
+  assert.ok(r);
+  assert.equal(duplicateImport(r, [t()]), true);
+});
+test("CSV includes risk fields and protects spreadsheet formula text", () => {
+  const out = csv([t({ notes: "=1+1" })]);
+  assert.ok(out.includes("Lot size"));
+  assert.ok(out.includes("'=1+1"));
+});
+
+test("undated trades preserve blank actual dates and their neighbouring sort date", () => {
+  const rs = parseRows([
+    ["Date", "Pair", "HTF Type"],
+    ["07/08/25", "GBPUSD", "LS"],
+    ["", "GBPJPY", "LS"],
+  ]);
+  const r = rs[1];
+  assert.ok(r);
+  const p = importPayload(r, "historical");
+  assert.equal(p.traded_on, null);
+  assert.equal(p.date, "2025-08-07");
+  assert.equal(p.further_levels.sheet.importPosition, 3);
+  assert.equal(p.further_levels.sheet.dateUnknown, true);
+});

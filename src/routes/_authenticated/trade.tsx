@@ -447,7 +447,7 @@ function LogTab() {
               <div>
                 <p className="text-lg font-extrabold leading-none">{t.pair}</p>
                 <p className="mt-1 text-xs font-bold text-muted-foreground">
-                  {prettyDate(t.date)}
+                  {t.date ? prettyDate(t.date) : "Date unknown"}
                   {t.time_of_trade ? ` · ${String(t.time_of_trade).slice(0, 5)}` : ""} ·{" "}
                   {t.direction}
                 </p>
@@ -731,6 +731,7 @@ function TradeSheet({
 
   const save = useMutation({
     mutationFn: async () => {
+      if (!f.date && !trade) throw new Error('Choose a date for a new trade');
       const quantities = [['Entry',f.entry],['Stop',f.stop],['Target',f.target],['Lot size',detail.lot],['Exit',detail.exit],['Risk',detail.riskCash]];
       for (const [label,v] of quantities) { if (v && (numeric(v) === null || Number(v) <= 0)) throw new Error(`${label} must be a positive number`); }
       if (detail.exitMode === 'scaled') {
@@ -740,6 +741,7 @@ function TradeSheet({
         if (f.outcome !== 'open' && calculated.closed !== 100) throw new Error('Closed trades must account for 100% of the position');
       }
       if (f.entry && f.stop && calculated.stopPips === null) throw new Error('Stop must be below a long entry or above a short entry');
+      const netCash = f.cash ? (f.cash_sign === '-' ? -1 : 1) * Number(f.cash) : detail.exitMode === 'scaled' && calculated.closed === 100 && detail.fills.every(fill => numeric(fill.cash) !== null) ? detail.fills.reduce((sum, fill) => sum + Number(fill.cash), 0) : null;
       let screenshotUrl: string | null = f.screenshot_url || null;
       if (photo) screenshotUrl = await uploadTradeScreenshot(photo);
       const payload = {
@@ -759,7 +761,7 @@ function TradeSheet({
         target: f.target ? Number(f.target) : null,
         rr: f.rr ? Number(f.rr) : calculated.plannedR,
         outcome: f.outcome,
-        result_r: f.result_r ? Number(f.result_r) : f.outcome === 'open' ? null : detail.riskCash && f.cash ? ((f.cash_sign === '-' ? -1 : 1) * Number(f.cash)) / Number(detail.riskCash) : calculated.realisedR,
+        result_r: f.result_r ? Number(f.result_r) : f.outcome === 'open' ? null : detail.riskCash && netCash !== null ? netCash / Number(detail.riskCash) : calculated.realisedR,
         market_feeling: f.market_feeling || null,
         pair_feeling: f.pair_feeling || null,
         emotions: f.emotions || null,
@@ -771,8 +773,8 @@ function TradeSheet({
         further_levels: {
           ...(trade?.further_levels && typeof trade.further_levels === "object" && !Array.isArray(trade.further_levels) ? trade.further_levels : {}),
           ...further,
-          sheet: detail,
-          cash: f.cash ? (f.cash_sign === "-" ? -1 : 1) * Number(f.cash) : detail.exitMode === "scaled" && calculated.closed === 100 && detail.fills.every(fill => numeric(fill.cash) !== null) ? detail.fills.reduce((sum, fill) => sum + Number(fill.cash), 0) : null,
+          sheet: {...detail, dateUnknown: !f.date},
+          cash: netCash,
         },
         screenshot_url: screenshotUrl,
         news_events:
@@ -2339,7 +2341,7 @@ function EdgeTab() {
                 </span>
               </div>
               <p className="mt-1 text-xs font-bold text-muted-foreground">
-                {prettyDate(t.date)} ·{" "}
+                {t.date ? prettyDate(t.date) : "Date unknown"} ·{" "}
                 {STRATEGIES.find((s) => s.value === t.strategy)?.label ?? t.strategy}
                 {t.setup ? ` · ${SETUPS.find((s) => s.value === t.setup)?.label ?? t.setup}` : ""}
                 {t.entry_tf ? ` · entry ${t.entry_tf}` : ""}

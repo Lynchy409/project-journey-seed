@@ -104,7 +104,12 @@ export const tradesQuery = queryOptions({
       .order("date", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return data;
+    return data.map(t => {
+      const fl = t.further_levels;
+      const detail = fl && typeof fl === 'object' && 'sheet' in fl ? fl['sheet'] : null;
+      const unknown = detail && typeof detail === 'object' && 'dateUnknown' in detail && detail['dateUnknown'] === true;
+      return {...t, date: unknown ? (t.traded_on ?? '') : (t.traded_on ?? t.date)};
+    });
   },
 });
 
@@ -114,12 +119,19 @@ type TradeUpdate = Database["public"]["Tables"]["trades"]["Update"];
 
 export async function addTrade(input: TradeInsert) {
   const user = await uid();
-  const { error } = await supabase.from("trades").insert({ ...input, user_id: user });
+  const { error } = await supabase.from("trades").insert({ ...input, traded_on: input.date || null, user_id: user });
   if (error) throw error;
 }
 
 export async function updateTrade(id: string, patch: TradeUpdate) {
-  const { error } = await supabase.from("trades").update(patch).eq("id", id);
+  let legacyDate = patch.date;
+  if (patch.date === '') {
+    const {data,error} = await supabase.from('trades').select('date').eq('id',id).single();
+    if(error) throw error;
+    legacyDate = data.date;
+  }
+  const update = patch.date === undefined ? patch : {...patch,date:legacyDate ?? patch.date,traded_on:patch.date || null};
+  const { error } = await supabase.from("trades").update(update).eq("id", id);
   if (error) throw error;
 }
 

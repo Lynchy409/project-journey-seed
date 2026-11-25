@@ -1351,6 +1351,7 @@ export type Database = {
           strategy: string
           target: number | null
           time_of_trade: string | null
+          traded_on: string | null
           trend_context: Json | null
           updated_at: string
           user_id: string
@@ -1385,6 +1386,7 @@ export type Database = {
           strategy?: string
           target?: number | null
           time_of_trade?: string | null
+          traded_on?: string | null
           trend_context?: Json | null
           updated_at?: string
           user_id: string
@@ -1419,6 +1421,7 @@ export type Database = {
           strategy?: string
           target?: number | null
           time_of_trade?: string | null
+          traded_on?: string | null
           trend_context?: Json | null
           updated_at?: string
           user_id?: string

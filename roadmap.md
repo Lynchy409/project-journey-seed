@@ -1,7 +1,7 @@
 # Roadmap
 
-- [ ] Trade: spreadsheet-matched logger with lots, SL/TP, partial fills, risk and news; filtered rankings, grid/export and safe historical import.
-- [ ] Import all 75 uploaded trades into Historical; future trades stay split by account. Save the two missing dates as blank and retain original row order.
+- [x] Trade: spreadsheet-matched logger with lots, SL/TP, partial fills, risk and news; filtered rankings, grid/export and safe historical import. Save/reload/edit verified, 14 tests pass.
+- [x] Import all 75 uploaded trades into Historical; future trades stay split by account. Save the two missing dates as blank and retain original row order.
 
 - [x] Finish agreed Train redesign: multi-type fresh logs, decimal strength/PBs, fitness/recovery inputs, draft resume, session editing, exercise history and automatic Today completion; verified without publishing.
 
